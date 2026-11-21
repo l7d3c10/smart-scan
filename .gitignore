@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+.env.example
+server/storage/
+server/python/.venv/
+__pycache__/
+*.py[cod]
+.superpowers/
+.impeccable/
+docs/
