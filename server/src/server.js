@@ -10,7 +10,7 @@ dotenv.config({ path: path.join(projectRoot, '.env') });
 
 const config = loadConfig();
 const pool = createPool(config.databaseUrl);
-const app = createApp();
+const app = createApp(pool);
 const server = app.listen(config.port, () => {
   console.log(`SmartScan API đang chạy tại http://localhost:${config.port}/api`);
 });
