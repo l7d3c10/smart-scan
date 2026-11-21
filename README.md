@@ -134,4 +134,50 @@ Vite phục vụ client tại `http://localhost:5173`; API chạy tại `http://
 - `server/storage/`: file runtime riêng tư; không commit và không phục vụ tĩnh.
 
 
-Khung hiện có trang khởi đầu, endpoint `GET /api/health`, cấu hình PostgreSQL và hợp đồng CLI Python. Các màn hình, migration dữ liệu, xác thực, CRUD và pipeline xử lý ảnh sẽ được bổ sung theo kế hoạch đồ án.
+## Cấu trúc dự án và Phân chia Module
+
+Dự án được phân tách rõ ràng cho 3 thành viên:
+
+### Người 1 – Nền tảng và Quản lý Tài liệu (ĐÃ HOÀN THÀNH VÀ KIỂM THỬ)
+- **Frontend**:
+  - Design System chuyên nghiệp (`tokens.css`, `reset.css`, `layout.css`, `components.css`).
+  - Layout quản trị SaaS: Sidebar (với trạng thái hoạt động & badge "Sắp có"), Topbar breadcrumb & avatar.
+  - S04: Danh sách tài liệu (`/tai-lieu`) với thanh thống kê, tìm kiếm debounced, lọc loại, sắp xếp, phân trang, skeleton loading, empty state, xóa qua confirm modal.
+  - S05: Thêm tài liệu mới (`/tai-lieu/them`) với validation inline, mã tài liệu tự động cấp, panel hướng dẫn 2 cột, toast notification.
+  - S06: Chỉnh sửa tài liệu (`/tai-lieu/:id/sua`).
+  - S07: Chi tiết tài liệu (`/tai-lieu/:id`) chia 2 khu vực: Image Viewer (Tab Ảnh gốc / Ảnh đã xử lý, thanh công cụ zoom/rotate) & Panel thông tin chi tiết.
+  - UI Components: Button, Badge, Input, Select, SearchInput, Modal, ConfirmDialog, Toast, Skeleton, Pagination, EmptyState.
+- **Backend & Database**:
+  - PostgreSQL schema (`001_initial_schema.sql`) và seed 30 tài liệu mẫu (`001_seed_data.sql`).
+  - API endpoints:
+    - `GET /api/health`
+    - `GET /api/health/db`
+    - `GET /api/documents` (tìm kiếm, lọc theo loại, sắp xếp, phân trang)
+    - `GET /api/documents/:id`
+    - `POST /api/documents` (tự động cấp mã `TL-XXXX` qua sequence, validation chặt chẽ)
+    - `PUT /api/documents/:id` (cập nhật thông tin, cập nhật `updated_at`)
+    - `DELETE /api/documents/:id` (xóa an toàn)
+  - Parameterized SQL queries chống SQL Injection, xử lý lỗi tập trung, CORS hỗ trợ Vite client.
+
+### Người 2 – Xử lý ảnh (OpenCV / Python)
+- Module: `server/python/` và các bảng `uploads`.
+- Endpoint cần tích hợp:
+  - `POST /api/documents/:id/upload` (hoặc upload qua màn hình Tải lên `/tai-len`).
+  - Thực thi CLI `server/python/process.py` với các tham số `--input`, `--output`, `--mode` (color, gray, bw), canny, kernel.
+  - Cập nhật `original_path` và `processed_path` trong bảng `documents`.
+- Điểm gắn kết trên Frontend:
+  - Tab "Ảnh gốc" và "Ảnh đã xử lý" tại trang `DocumentDetailPage.jsx` đã được xây dựng sẵn giao diện và tự động hiển thị ảnh khi `original_path`/`processed_path` có dữ liệu.
+
+### Người 3 – Bảo mật, Xác thực & Phân quyền
+- Module: `session`, `users`, `audit_logs`.
+- Nhiệm vụ:
+  - Đăng ký, đăng nhập (`POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`).
+  - Session store qua `connect-pg-simple` (bảng `session` đã được tạo sẵn trong migration `001_initial_schema.sql`).
+  - CSRF protection và RBAC middleware (Admin / User).
+  - Ghi nhật ký vào bảng `audit_logs` khi có hành động liên quan đến tài liệu (`DOC_CREATE`, `DOC_UPDATE`, `DOC_DELETE`).
+- Điểm gắn kết trên Backend:
+  - Gắn middleware xác thực trước các routes trong `server/src/routes/document.routes.js`.
+  - Thay thế `owner_id = 1` mặc định bằng `req.session.userId`.
+- Điểm gắn kết trên Frontend:
+  - Gắn các routes đăng nhập, bảo vệ PrivateRoute và hiển thị thông tin người dùng trên Topbar avatar.
+

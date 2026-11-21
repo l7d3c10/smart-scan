@@ -1,65 +1,9 @@
-:root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #0F172A;
-  background: #F8FAFC;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  --color-primary: #1D4ED8;
-  --color-border: #E2E8F0;
-  --color-muted: #64748B;
+/* Legacy styles – kept for compatibility. Main styles now in tokens/reset/layout/components. */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-* { box-sizing: border-box; }
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-}
-
-a { color: inherit; text-decoration: none; }
-
-.page-shell {
-  display: flex;
-  min-height: 100vh;
-  flex-direction: column;
-  padding: 0 clamp(20px, 6vw, 88px);
-}
-
-.topbar {
-  display: flex;
-  min-height: 82px;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.brand { display: inline-flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 750; }
-.brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: var(--color-primary); color: white; }
-.status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 999px; background: white; color: var(--color-muted); font-size: 13px; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #16A34A; }
-
-.welcome-card {
-  width: min(100%, 760px);
-  margin: auto;
-  padding: clamp(30px, 6vw, 62px);
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
-  background: white;
-  box-shadow: 0 18px 50px rgb(15 23 42 / 5%);
-}
-
-.eyebrow { margin: 0 0 16px; color: var(--color-primary); font-size: 12px; font-weight: 750; letter-spacing: .12em; }
-h1 { max-width: 620px; margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.08; letter-spacing: -.045em; }
-h1 span { color: var(--color-primary); }
-.welcome-copy { max-width: 540px; margin: 22px 0 28px; color: var(--color-muted); font-size: 16px; line-height: 1.7; }
-.tech-list { display: flex; flex-wrap: wrap; gap: 9px; }
-.tech-list span { padding: 8px 11px; border: 1px solid var(--color-border); border-radius: 8px; background: #F8FAFC; color: #334155; font-size: 13px; }
-.home-link { display: inline-block; margin-top: 20px; color: var(--color-primary); font-weight: 650; }
-.page-footer { padding: 22px 0; color: var(--color-muted); font-size: 12px; text-align: center; }
-
-@media (max-width: 520px) {
-  .topbar { min-height: 70px; }
-  .status-pill { padding: 7px 9px; font-size: 11px; }
-  .welcome-copy { font-size: 15px; }
+.spin-icon {
+  animation: spin 0.8s linear infinite;
 }
