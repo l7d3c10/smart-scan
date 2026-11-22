@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Plus, RefreshCw, Eye, Pencil, Trash2,
+  Plus, RefreshCw, Eye, Pencil, Trash2, Download, FileSpreadsheet,
   FileWarning, AlertCircle,
 } from 'lucide-react';
+import { createDocumentsXlsx } from '../services/xlsx-export.js';
 import { useDocuments } from '../hooks/useDocuments.js';
 import { useToast } from '../hooks/useToast.js';
 import { documentService } from '../services/document.service.js';
@@ -101,6 +102,7 @@ export default function DocumentListPage() {
   // Delete dialog
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting,     setDeleting]     = useState(false);
+  const [exporting, setExporting] = useState('');
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
 
   const handleDelete = useCallback(async () => {
@@ -126,6 +128,36 @@ export default function DocumentListPage() {
     setType('');
     setSort('created_at_desc');
     setPage(1);
+  };
+
+  const handleExport = async (format) => {
+    setExporting(format);
+    try {
+      const { items } = await documentService.export({ search, type, sort });
+      let blob;
+      const today = new Date().toISOString().slice(0, 10);
+      let filename;
+      if (format === 'json') {
+        blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json;charset=utf-8' });
+        filename = `smartscan-tai-lieu-${today}.json`;
+      } else {
+        const buffer = createDocumentsXlsx(items);
+        blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        filename = `smartscan-tai-lieu-${today}.xlsx`;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      toastSuccess(`Đã xuất ${items.length} tài liệu ra ${format === 'json' ? 'JSON' : 'Excel'}.`);
+    } catch (exportError) {
+      toastError(exportError.message || 'Xuất dữ liệu thất bại.');
+    } finally {
+      setExporting('');
+    }
   };
 
   return (
@@ -183,6 +215,8 @@ export default function DocumentListPage() {
           ))}
         </select>
         <div className="toolbar-spacer" />
+        <Button variant="secondary" size="sm" icon={Download} loading={exporting === 'json'} disabled={Boolean(exporting)} onClick={() => handleExport('json')}>JSON</Button>
+        <Button variant="secondary" size="sm" icon={FileSpreadsheet} loading={exporting === 'excel'} disabled={Boolean(exporting)} onClick={() => handleExport('excel')}>Excel</Button>
         {hasFilter && (
           <Button variant="ghost" size="sm" onClick={handleResetFilter}>
             Xóa bộ lọc
