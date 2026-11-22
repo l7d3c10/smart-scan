@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { to: '/',           label: 'Tổng quan',       icon: LayoutDashboard, disabled: true },
+  { to: '/',           label: 'Tổng quan',       icon: LayoutDashboard, disabled: false },
   { to: '/tai-lieu',   label: 'Tài liệu',         icon: FileText,        disabled: false },
   { to: '/tai-len',    label: 'Tải lên',          icon: Upload,          disabled: true },
   { to: '/nguoi-dung', label: 'Người dùng',       icon: Users,           disabled: true },

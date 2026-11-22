@@ -1,5 +1,7 @@
 import { useLocation } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, LogOut } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const BREADCRUMB_MAP = {
   '/':              ['Tổng quan'],
@@ -16,7 +18,18 @@ function getBreadcrumbs(pathname) {
 
 export function Topbar() {
   const { pathname } = useLocation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const crumbs = getBreadcrumbs(pathname);
+
+  async function handleLogout() {
+    try {
+      await logout();
+      navigate('/dang-nhap', { replace: true });
+    } catch {
+      navigate('/dang-nhap', { replace: true });
+    }
+  }
 
   return (
     <header className="topbar">
@@ -32,10 +45,11 @@ export function Topbar() {
       </nav>
 
       <div className="topbar-right">
-        {/* Avatar placeholder – auth do Người 3 triển khai */}
-        <div className="topbar-avatar" title="Tài khoản (chưa tích hợp)">
-          A
+        <div className="topbar-user">
+          <span className="topbar-user-name">{user?.username}</span>
+          <span className="badge badge-primary">{user?.role === 'admin' ? 'Admin' : 'User'}</span>
         </div>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={handleLogout}><LogOut size={15} /> Đăng xuất</button>
       </div>
     </header>
   );

@@ -25,6 +25,7 @@ export function loadConfig(env = process.env) {
     port,
     databaseUrl: env.DATABASE_URL,
     sessionSecret: env.SESSION_SECRET,
+    clientOrigin: env.CLIENT_ORIGIN || 'http://localhost:5173',
     storageRoot: path.resolve(projectRoot, env.STORAGE_ROOT || 'server/storage'),
     pythonExecutable: resolvedPythonExecutable,
   };

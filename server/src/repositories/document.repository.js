@@ -32,7 +32,7 @@ function mapRow(row) {
  * findAll – paginated list with optional search/type/sort filters.
  * @returns {{ rows: object[], total: number }}
  */
-export async function findAll(pool, { search, type, page = 1, limit = 20, sort = 'created_at_desc' } = {}) {
+export async function findAll(pool, { search, type, page = 1, limit = 20, sort = 'created_at_desc', ownerId } = {}) {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const safePage = Math.max(Number(page) || 1, 1);
   const offset = (safePage - 1) * safeLimit;
@@ -48,6 +48,11 @@ export async function findAll(pool, { search, type, page = 1, limit = 20, sort =
   if (type && VALID_TYPES.includes(type)) {
     params.push(type);
     conditions.push(`type = $${params.length}`);
+  }
+
+  if (ownerId !== undefined) {
+    params.push(ownerId);
+    conditions.push(`owner_id = $${params.length}`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -98,7 +103,7 @@ export async function create(pool, { title, type, description = '', ownerId }) {
 /**
  * update – updates mutable fields; returns updated document or null if not found.
  */
-export async function update(pool, id, { title, type, description }) {
+export async function update(pool, id, { title, type, description }, ownerId) {
   const setParts = [];
   const params = [];
 
@@ -120,9 +125,14 @@ export async function update(pool, id, { title, type, description }) {
   }
 
   params.push(id);
+  let ownerCondition = '';
+  if (ownerId !== undefined) {
+    params.push(ownerId);
+    ownerCondition = ` AND owner_id = $${params.length}`;
+  }
   const res = await pool.query(
     `UPDATE documents SET ${setParts.join(', ')}, updated_at = NOW()
-     WHERE id = $${params.length}
+     WHERE id = $${ownerId === undefined ? params.length : params.length - 1}${ownerCondition}
      RETURNING *`,
     params
   );
@@ -132,7 +142,13 @@ export async function update(pool, id, { title, type, description }) {
 /**
  * remove – deletes document; returns true if deleted, false if not found.
  */
-export async function remove(pool, id) {
-  const res = await pool.query('DELETE FROM documents WHERE id = $1', [id]);
+export async function remove(pool, id, ownerId) {
+  const params = [id];
+  let query = 'DELETE FROM documents WHERE id = $1';
+  if (ownerId !== undefined) {
+    params.push(ownerId);
+    query += ' AND owner_id = $2';
+  }
+  const res = await pool.query(query, params);
   return (res.rowCount ?? 0) > 0;
 }

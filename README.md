@@ -123,6 +123,21 @@ CREATE INDEX IF NOT EXISTS "IDX_session_expire"
 4. Cài OpenCV: `.\server\python\.venv\Scripts\python.exe -m pip install -r server/python/requirements.txt` (Windows); dùng `./server/python/.venv/bin/python -m pip install -r server/python/requirements.txt` trên macOS/Linux.
 5. Chạy giao diện và API: `npm run dev`.
 
+`CLIENT_ORIGIN` có thể đặt trong `.env` nếu client không chạy tại `http://localhost:5173`. Dashboard dùng các API đã đăng nhập `GET /api/stats/summary`, `/api/stats/monthly` và `/api/stats/by-type`.
+
+### Tài khoản mẫu (lần chạy đầu)
+
+Sau khi áp dụng `001_initial_schema.sql` và `002_auth_bootstrap.sql`, đặt các biến dưới đây trong `.env` rồi chạy `npm run seed:auth --workspace @smartscan/server`. Script tạo một Admin và một User, băm mật khẩu bằng bcrypt và chỉ lưu hash trong PostgreSQL. Chạy lại script sẽ đặt lại mật khẩu/vai trò và mở khóa đúng hai tài khoản được cấu hình.
+
+```dotenv
+SEED_ADMIN_USERNAME=admin
+SEED_ADMIN_PASSWORD=AdminDev123
+SEED_USER_USERNAME=user_demo
+SEED_USER_PASSWORD=UserDev123
+```
+
+Hãy thay mật khẩu mẫu bằng mật khẩu riêng trước khi sử dụng dữ liệu thật. API xác thực hiện có `GET /api/auth/csrf`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout` và `GET /api/auth/me`; cookie session là `httpOnly`, session được lưu trong PostgreSQL.
+
 Vite phục vụ client tại `http://localhost:5173`; API chạy tại `http://localhost:3000/api`. Vite chuyển tiếp request `/api` sang Express. Trong `.env`, đặt `PYTHON_EXECUTABLE` thành `server/python/.venv/Scripts/python.exe` trên Windows hoặc `server/python/.venv/bin/python` trên macOS/Linux.
 
 ## Cấu trúc
@@ -154,9 +169,11 @@ Dự án được phân tách rõ ràng cho 3 thành viên:
     - `GET /api/health/db`
     - `GET /api/documents` (tìm kiếm, lọc theo loại, sắp xếp, phân trang)
     - `GET /api/documents/:id`
-    - `POST /api/documents` (tự động cấp mã `TL-XXXX` qua sequence, validation chặt chẽ)
+  - `POST /api/documents` (tự động cấp mã `TL-XXXX` qua sequence, validation chặt chẽ; chủ sở hữu lấy từ phiên đăng nhập)
     - `PUT /api/documents/:id` (cập nhật thông tin, cập nhật `updated_at`)
     - `DELETE /api/documents/:id` (xóa an toàn)
+  - `POST /api/uploads` và `GET /api/uploads/:id/original` (upload JPG/PNG tối đa 5 MB, file riêng tư theo chủ sở hữu)
+  - `POST /api/admin/users/:id/lock` và `/unlock` (Admin khóa/mở tài khoản)
   - Parameterized SQL queries chống SQL Injection, xử lý lỗi tập trung, CORS hỗ trợ Vite client.
 
 ### Người 2 – Xử lý ảnh (OpenCV / Python)
