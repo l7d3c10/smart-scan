@@ -7,6 +7,9 @@ const BREADCRUMB_MAP = {
   '/':              ['Tổng quan'],
   '/tai-lieu':      ['Tài liệu'],
   '/tai-lieu/them': ['Tài liệu', 'Thêm mới'],
+  '/quan-tri/nguoi-dung': ['Quản trị', 'Người dùng'],
+  '/quan-tri/nhat-ky': ['Quản trị', 'Nhật ký hoạt động'],
+  '/ho-so': ['Hồ sơ'],
 };
 
 function getBreadcrumbs(pathname) {

@@ -1,4 +1,5 @@
 import * as docRepo from '../repositories/document.repository.js';
+import { writeAudit } from '../services/audit.service.js';
 
 const VALID_TYPES = ['hoa_don', 'hop_dong', 'giay_to', 'bien_ban', 'khac'];
 const VALID_SORTS = ['created_at_desc', 'title_asc'];
@@ -75,6 +76,45 @@ export async function listDocuments(req, res, next) {
   }
 }
 
+export async function exportDocuments(req, res, next) {
+  try {
+    const { search, type, sort = 'created_at_desc' } = req.query;
+    const fields = {};
+    if (search !== undefined && (typeof search !== 'string' || search.length > 150)) fields.search = 'Từ khóa tìm kiếm tối đa 150 ký tự.';
+    if (type !== undefined && type !== '' && (typeof type !== 'string' || !VALID_TYPES.includes(type))) fields.type = 'Loại tài liệu không hợp lệ.';
+    if (typeof sort !== 'string' || !VALID_SORTS.includes(sort)) fields.sort = 'Thứ tự sắp xếp không hợp lệ.';
+    if (Object.keys(fields).length) {
+      return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Tham số xuất dữ liệu không hợp lệ.', fields } });
+    }
+
+    const rows = await docRepo.findForExport(req.app.locals.pool, {
+      search, type, sort,
+      ownerId: req.user.role === 'admin' ? undefined : req.user.id,
+    });
+    if (rows.length > 50000) {
+      return res.status(413).json({
+        ok: false,
+        error: { code: 'PAYLOAD_TOO_LARGE', message: 'Bộ lọc có hơn 50.000 tài liệu. Hãy thu hẹp bộ lọc rồi xuất lại.' },
+      });
+    }
+    await writeAudit(req.app.locals.pool, {
+      userId: req.user.id,
+      username: req.user.username,
+      action: 'DOC_EXPORT',
+      detail: `count=${rows.length}; search=${search || ''}; type=${type || ''}`,
+      ip: req.ip,
+    });
+    const items = rows.map(({ original_path, processed_path, ...item }) => ({
+      ...item,
+      has_image: Boolean(original_path),
+      is_processed: Boolean(processed_path),
+    }));
+    return res.status(200).json({ ok: true, data: { items, total: items.length } });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 // GET /api/documents/:id
 export async function getDocument(req, res, next) {
   try {
@@ -118,6 +158,10 @@ export async function createDocument(req, res, next) {
       description: description ? String(description) : '',
       ownerId: req.user.id,
     });
+    await writeAudit(pool, {
+      userId: req.user.id, username: req.user.username, action: 'DOC_CREATE',
+      documentId: doc.id, detail: `code=${doc.code}; title=${doc.title}`, ip: req.ip,
+    });
     return res.status(201).json({ ok: true, data: doc });
   } catch (err) {
     next(err);
@@ -155,6 +199,10 @@ export async function updateDocument(req, res, next) {
         error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' },
       });
     }
+    await writeAudit(pool, {
+      userId: req.user.id, username: req.user.username, action: 'DOC_UPDATE',
+      documentId: doc.id, detail: `code=${doc.code}; title=${doc.title}`, ip: req.ip,
+    });
     return res.status(200).json({ ok: true, data: doc });
   } catch (err) {
     next(err);
@@ -172,6 +220,7 @@ export async function deleteDocument(req, res, next) {
         error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' },
       });
     }
+    const document = await docRepo.findById(pool, id);
     const deleted = await docRepo.remove(pool, id, req.user.role === 'admin' ? undefined : req.user.id);
     if (!deleted) {
       return res.status(404).json({
@@ -179,6 +228,10 @@ export async function deleteDocument(req, res, next) {
         error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' },
       });
     }
+    await writeAudit(pool, {
+      userId: req.user.id, username: req.user.username, action: 'DOC_DELETE',
+      detail: `document_id=${id}; code=${document?.code ?? ''}; title=${document?.title ?? ''}`, ip: req.ip,
+    });
     return res.status(200).json({ ok: true, data: { id } });
   } catch (err) {
     next(err);

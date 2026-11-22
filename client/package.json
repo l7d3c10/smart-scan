@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "chart.js": "^4.6.1",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.77.0",
     "react": "^19.3.0",
     "react-chartjs-2": "^5.3.1",

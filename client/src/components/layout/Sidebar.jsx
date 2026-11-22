@@ -6,19 +6,24 @@ import {
   Users,
   ScrollText,
   Settings,
+  UserRound,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const NAV_ITEMS = [
   { to: '/',           label: 'Tổng quan',       icon: LayoutDashboard, disabled: false },
   { to: '/tai-lieu',   label: 'Tài liệu',         icon: FileText,        disabled: false },
+  { to: '/ho-so',      label: 'Hồ sơ',            icon: UserRound,      disabled: false },
   { to: '/tai-len',    label: 'Tải lên',          icon: Upload,          disabled: true },
-  { to: '/nguoi-dung', label: 'Người dùng',       icon: Users,           disabled: true },
-  { to: '/nhat-ky',    label: 'Nhật ký',          icon: ScrollText,      disabled: true },
+  { to: '/quan-tri/nguoi-dung', label: 'Người dùng', icon: Users, adminOnly: true },
+  { to: '/quan-tri/nhat-ky',    label: 'Nhật ký',   icon: ScrollText, adminOnly: true },
   { to: '/cai-dat',    label: 'Cài đặt',          icon: Settings,        disabled: true },
 ];
 
 export function Sidebar() {
   const location = useLocation();
+  const { user } = useAuth();
+  const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === 'admin');
 
   return (
     <aside className="sidebar">
@@ -31,7 +36,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="sidebar-nav" aria-label="Điều hướng chính">
-        {NAV_ITEMS.map(({ to, label, icon: Icon, disabled }) => {
+        {navItems.map(({ to, label, icon: Icon, disabled }) => {
           if (disabled) {
             return (
               <div key={to} className="sidebar-nav-item disabled" aria-disabled="true">

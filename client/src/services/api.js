@@ -12,7 +12,14 @@ async function request(path, options = {}) {
   }
   const response = await fetch(url, { ...options, method, headers, credentials: 'include' });
   const json = await response.json();
-  if (!response.ok) throw { status: response.status, ...json.error };
+  if (!response.ok) {
+    if ([403, 404].includes(response.status) || response.status >= 500) {
+      window.dispatchEvent(new CustomEvent('smartscan:api-error', {
+        detail: { status: response.status, ref: json.error?.ref, path },
+      }));
+    }
+    throw { path, status: response.status, ...json.error };
+  }
   return json.data;
 }
 
@@ -30,7 +37,14 @@ async function upload(path, file) {
     credentials: 'include',
   });
   const json = await response.json();
-  if (!response.ok) throw { status: response.status, ...json.error };
+  if (!response.ok) {
+    if ([403, 404].includes(response.status) || response.status >= 500) {
+      window.dispatchEvent(new CustomEvent('smartscan:api-error', {
+        detail: { status: response.status, ref: json.error?.ref, path },
+      }));
+    }
+    throw { path, status: response.status, ...json.error };
+  }
   return json.data;
 }
 

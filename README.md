@@ -136,7 +136,7 @@ SEED_USER_USERNAME=user_demo
 SEED_USER_PASSWORD=UserDev123
 ```
 
-Hãy thay mật khẩu mẫu bằng mật khẩu riêng trước khi sử dụng dữ liệu thật. API xác thực hiện có `GET /api/auth/csrf`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout` và `GET /api/auth/me`; cookie session là `httpOnly`, session được lưu trong PostgreSQL.
+Hãy thay mật khẩu mẫu bằng mật khẩu riêng trước khi sử dụng dữ liệu thật. API xác thực hiện có `GET /api/auth/csrf`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` và `POST /api/auth/change-password`; cookie session là `httpOnly`, session được lưu trong PostgreSQL.
 
 Vite phục vụ client tại `http://localhost:5173`; API chạy tại `http://localhost:3000/api`. Vite chuyển tiếp request `/api` sang Express. Trong `.env`, đặt `PYTHON_EXECUTABLE` thành `server/python/.venv/Scripts/python.exe` trên Windows hoặc `server/python/.venv/bin/python` trên macOS/Linux.
 
@@ -169,11 +169,15 @@ Dự án được phân tách rõ ràng cho 3 thành viên:
     - `GET /api/health/db`
     - `GET /api/documents` (tìm kiếm, lọc theo loại, sắp xếp, phân trang)
     - `GET /api/documents/:id`
+    - `GET /api/documents/export` (xuất JSON/Excel ở client theo bộ lọc hiện tại)
   - `POST /api/documents` (tự động cấp mã `TL-XXXX` qua sequence, validation chặt chẽ; chủ sở hữu lấy từ phiên đăng nhập)
     - `PUT /api/documents/:id` (cập nhật thông tin, cập nhật `updated_at`)
     - `DELETE /api/documents/:id` (xóa an toàn)
   - `POST /api/uploads` và `GET /api/uploads/:id/original` (upload JPG/PNG tối đa 5 MB, file riêng tư theo chủ sở hữu)
-  - `POST /api/admin/users/:id/lock` và `/unlock` (Admin khóa/mở tài khoản)
+  - `GET /api/stats/summary`, `/api/stats/monthly`, `/api/stats/by-type` (thống kê theo quyền User/Admin)
+  - `GET /api/admin/users`, `GET /api/admin/audit-logs` (chỉ Admin; lọc và phân trang)
+  - `POST /api/admin/users/:id/role`, `/lock`, `/unlock`, `/reset-password` (quản trị tài khoản, ghi audit)
+  - `GET /api/admin/audit-logs` (lọc, phân trang và xuất JSON)
   - Parameterized SQL queries chống SQL Injection, xử lý lỗi tập trung, CORS hỗ trợ Vite client.
 
 ### Người 2 – Xử lý ảnh (OpenCV / Python)
