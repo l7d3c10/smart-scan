@@ -118,3 +118,31 @@
   --transition-fast: 100ms ease;
   --transition-base: 150ms ease;
 }
+
+[data-theme="dark"] {
+  --bg-app: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-muted: #334155;
+  --bg-hover: #334155;
+  --bg-active: #1e3a8a;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-disabled: #475569;
+  --text-link: #60a5fa;
+
+  --border-default: #334155;
+  --border-strong: #475569;
+  --border-focus: #3b82f6;
+
+  --color-white: #1e293b;
+  --color-gray-50: #0f172a;
+  --color-gray-100: #1e293b;
+  --color-gray-200: #334155;
+  --color-gray-300: #475569;
+  --color-gray-700: #cbd5e1;
+  --color-gray-800: #e2e8f0;
+  --color-gray-900: #f8fafc;
+}
+

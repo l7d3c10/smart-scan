@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, Trash2, Copy,
-  FileText, AlertCircle, Image, ZoomIn, ZoomOut,
-  RotateCw, Maximize2, Download,
+  FileText, AlertCircle, Image as ImageIcon, ZoomIn, ZoomOut,
+  RotateCw, Maximize2, Download, Clock, User, CheckCircle2,
+  Calendar, Upload
 } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDocument } from '../hooks/useDocument.js';
 import { useToast } from '../hooks/useToast.js';
 import { documentService } from '../services/document.service.js';
@@ -35,7 +36,7 @@ function formatDate(iso) {
 function InfoRow({ label, value }) {
   return (
     <div style={{ display: 'flex', gap: 'var(--space-3)', padding: 'var(--space-3) 0', borderBottom: '1px solid var(--border-default)' }}>
-      <span style={{ width: 110, flexShrink: 0, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', fontWeight: 'var(--weight-medium)' }}>
+      <span style={{ width: 120, flexShrink: 0, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', fontWeight: 'var(--weight-medium)' }}>
         {label}
       </span>
       <span style={{ fontSize: 'var(--text-base)', color: 'var(--text-primary)', flex: 1, wordBreak: 'break-word' }}>
@@ -52,8 +53,39 @@ export default function DocumentDetailPage() {
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting,   setDeleting]   = useState(false);
-  const [imageTab,   setImageTab]   = useState('original'); // 'original' | 'processed'
+  const [deleting, setDeleting] = useState(false);
+  const [imageTab, setImageTab] = useState('processed'); // 'processed' | 'original'
+
+  // Image controls state
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const viewerRef = useRef(null);
+
+  // History state
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (doc?.id) {
+      setLoadingHistory(true);
+      documentService.history(doc.id)
+        .then((res) => {
+          setHistory(res?.data || []);
+        })
+        .catch(() => {
+          setHistory([]);
+        })
+        .finally(() => setLoadingHistory(false));
+    }
+  }, [doc?.id]);
+
+  // Adjust default tab if no processed image
+  useEffect(() => {
+    if (doc && !doc.processed_path && doc.original_path) {
+      setImageTab('original');
+    }
+  }, [doc]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
@@ -67,21 +99,54 @@ export default function DocumentDetailPage() {
     }
   }, [id, navigate, toastSuccess, toastError]);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!doc) return;
-    const text = `Mã: ${doc.code}\nTên: ${doc.title}\nLoại: ${doc.type_label}\nMô tả: ${doc.description}`;
-    navigator.clipboard.writeText(text).then(
-      () => toastSuccess('Đã sao chép thông tin tài liệu.'),
-      () => toastError('Không thể sao chép.'),
-    );
+    try {
+      const copied = await documentService.copy(doc.id);
+      toastSuccess(`Đã nhân bản tài liệu thành công: ${copied.code}`);
+      setTimeout(() => navigate(`/tai-lieu/${copied.id}`), 1000);
+    } catch {
+      toastError('Không thể sao chép tài liệu.');
+    }
   };
 
-  /* ── Loading ── */
+  // Image zoom/rotate handlers
+  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 3));
+  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.5));
+  const handleRotate = () => setRotation((r) => (r + 90) % 360);
+  const handleResetView = () => {
+    setZoom(1);
+    setRotation(0);
+  };
+
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      viewerRef.current?.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  };
+
+  const currentImagePath = imageTab === 'processed' ? doc?.processed_path : doc?.original_path;
+  const currentImageUrl = currentImagePath ? `/api/uploads/${currentImagePath}` : null;
+
+  const handleDownload = () => {
+    if (!currentImageUrl) return;
+    const a = document.createElement('a');
+    a.href = currentImageUrl;
+    a.download = `${doc.code}_${imageTab}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 'var(--space-6)', alignItems: 'start' }}>
-        <div className="table-container" style={{ padding: 'var(--space-6)', minHeight: 400 }}>
-          <Skeleton width="100%" height={300} />
+        <div className="table-container" style={{ padding: 'var(--space-6)', minHeight: 450 }}>
+          <Skeleton width="100%" height={380} />
         </div>
         <div className="table-container" style={{ padding: 'var(--space-6)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -92,7 +157,6 @@ export default function DocumentDetailPage() {
     );
   }
 
-  /* ── Error / Not found ── */
   if (error || !doc) {
     return (
       <EmptyState
@@ -111,164 +175,319 @@ export default function DocumentDetailPage() {
     );
   }
 
-  const hasOriginal   = !!doc.original_path;
-  const hasProcessed  = !!doc.processed_path;
-
   return (
     <>
+      {/* Header breadcrumb & actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => navigate('/tai-lieu')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <ArrowLeft size={15} /> Danh sách
+          </button>
+          <span style={{ color: 'var(--text-muted)' }}>/</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-primary-700)' }}>
+            {doc.code}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <Button variant="secondary" size="sm" icon={Copy} onClick={handleCopy}>
+            Nhân bản tài liệu
+          </Button>
+          <Button variant="secondary" size="sm" icon={Pencil} onClick={() => navigate(`/tai-lieu/${id}/sua`)}>
+            Chỉnh sửa
+          </Button>
+          <Button variant="danger" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)}>
+            Xóa
+          </Button>
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 'var(--space-6)', alignItems: 'start' }}>
 
-        {/* ── Image Viewer ── */}
-        <div className="table-container">
+        {/* ── Image Viewer (Left 2/3) ── */}
+        <div className="table-container" ref={viewerRef} style={{ background: 'var(--bg-surface)' }}>
           {/* Tab bar */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
-            {[
-              { key: 'original',  label: 'Ảnh gốc' },
-              { key: 'processed', label: 'Ảnh đã xử lý' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setImageTab(key)}
-                style={{
-                  padding: 'var(--space-3) var(--space-5)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: imageTab === key ? 'var(--weight-semibold)' : 'var(--weight-normal)',
-                  color: imageTab === key ? 'var(--color-primary-700)' : 'var(--text-secondary)',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: imageTab === key ? '2px solid var(--color-primary-600)' : '2px solid transparent',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)',
-                  marginBottom: -1,
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-default)', padding: '0 var(--space-4)' }}>
+            <div style={{ display: 'flex' }}>
+              {[
+                { key: 'processed', label: 'Ảnh đã xử lý (OpenCV)' },
+                { key: 'original',  label: 'Ảnh gốc chụp' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setImageTab(key);
+                    handleResetView();
+                  }}
+                  style={{
+                    padding: 'var(--space-3) var(--space-4)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: imageTab === key ? 'var(--weight-semibold)' : 'var(--weight-normal)',
+                    color: imageTab === key ? 'var(--color-primary-600)' : 'var(--text-secondary)',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: imageTab === key ? '2px solid var(--color-primary-600)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                    marginBottom: -1,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-          {/* Image area */}
-          <div style={{ minHeight: 360, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)' }}>
-            {imageTab === 'original' && !hasOriginal && (
-              <EmptyState
-                icon={Image}
-                title="Chưa có ảnh gốc"
-                description="Ảnh tài liệu gốc sẽ hiển thị ở đây sau khi tải lên qua trang Tải lên."
-              />
-            )}
-            {imageTab === 'processed' && !hasProcessed && (
-              <EmptyState
-                icon={Image}
-                title="Chưa có ảnh đã xử lý"
-                description="Ảnh sau khi xử lý bằng OpenCV sẽ hiển thị ở đây (Người 2 triển khai)."
-              />
-            )}
-            {imageTab === 'original' && hasOriginal && (
-              <img
-                src={`/api/uploads/${doc.original_path}`}
-                alt="Ảnh gốc tài liệu"
-                style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
-              />
-            )}
-            {imageTab === 'processed' && hasProcessed && (
-              <img
-                src={`/api/uploads/${doc.processed_path}`}
-                alt="Ảnh đã xử lý"
-                style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
-              />
+            {currentImagePath && (
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                Thu phóng: {Math.round(zoom * 100)}% | Xoay: {rotation}°
+              </span>
             )}
           </div>
 
-          {/* Viewer toolbar */}
-          <div style={{ display: 'flex', gap: 'var(--space-1)', padding: 'var(--space-3) var(--space-4)', borderTop: '1px solid var(--border-default)', justifyContent: 'center' }}>
-            {[
-              { icon: ZoomIn,    title: 'Phóng to',      disabled: true },
-              { icon: ZoomOut,   title: 'Thu nhỏ',       disabled: true },
-              { icon: RotateCw,  title: 'Xoay',          disabled: true },
-              { icon: Maximize2, title: 'Toàn màn hình', disabled: true },
-              { icon: Download,  title: 'Tải xuống',     disabled: true },
-            ].map(({ icon: Icon, title, disabled }) => (
+          {/* Image Display Canvas */}
+          <div style={{
+            minHeight: 420,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 'var(--space-4)',
+            overflow: 'hidden',
+            backgroundColor: 'var(--bg-muted)',
+            position: 'relative'
+          }}>
+            {imageTab === 'processed' && !doc.processed_path && (
+              <div style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
+                <ImageIcon size={48} color="var(--text-muted)" style={{ margin: '0 auto var(--space-3)' }} />
+                <h4 style={{ margin: '0 0 var(--space-2)' }}>Chưa có ảnh đã xử lý</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', maxWidth: 320, margin: '0 auto var(--space-4)' }}>
+                  Tài liệu này chưa trải qua các bước nắn góc phối cảnh và làm rõ chữ của OpenCV.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={Upload}
+                  onClick={() => navigate(`/tai-len?documentId=${doc.id}`)}
+                >
+                  Xử lý ảnh ngay
+                </Button>
+              </div>
+            )}
+
+            {imageTab === 'original' && !doc.original_path && (
+              <div style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
+                <ImageIcon size={48} color="var(--text-muted)" style={{ margin: '0 auto var(--space-3)' }} />
+                <h4 style={{ margin: '0 0 var(--space-2)' }}>Chưa có ảnh gốc</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', maxWidth: 320, margin: '0 auto var(--space-4)' }}>
+                  Hãy tải ảnh lên để bắt đầu lưu trữ và xử lý.
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={Upload}
+                  onClick={() => navigate(`/tai-len?documentId=${doc.id}`)}
+                >
+                  Tải ảnh lên
+                </Button>
+              </div>
+            )}
+
+            {currentImagePath && (
+              <div style={{
+                transition: 'transform 0.15s ease-out',
+                transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                maxWidth: '100%',
+                maxHeight: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <img
+                  src={currentImageUrl}
+                  alt={doc.title}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: 460,
+                    objectFit: 'contain',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--shadow-md)',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Viewer Toolbar */}
+          <div style={{
+            display: 'flex',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-2) var(--space-4)',
+            borderTop: '1px solid var(--border-default)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            background: 'var(--bg-surface)'
+          }}>
+            <button
+              className="btn-icon"
+              title="Phóng to"
+              onClick={handleZoomIn}
+              disabled={!currentImagePath}
+            >
+              <ZoomIn size={16} />
+            </button>
+
+            <button
+              className="btn-icon"
+              title="Thu nhỏ"
+              onClick={handleZoomOut}
+              disabled={!currentImagePath}
+            >
+              <ZoomOut size={16} />
+            </button>
+
+            <button
+              className="btn-icon"
+              title="Xoay 90 độ"
+              onClick={handleRotate}
+              disabled={!currentImagePath}
+            >
+              <RotateCw size={16} />
+            </button>
+
+            <button
+              className="btn-icon"
+              title="Toàn màn hình"
+              onClick={handleToggleFullscreen}
+              disabled={!currentImagePath}
+            >
+              <Maximize2 size={16} />
+            </button>
+
+            <button
+              className="btn-icon"
+              title="Tải ảnh về máy"
+              onClick={handleDownload}
+              disabled={!currentImagePath}
+            >
+              <Download size={16} />
+            </button>
+
+            {currentImagePath && (zoom !== 1 || rotation !== 0) && (
               <button
-                key={title}
-                className="btn-icon"
-                title={`${title}${disabled ? ' (Người 2 triển khai)' : ''}`}
-                disabled={disabled}
-                style={{ opacity: disabled ? 0.4 : 1 }}
+                className="btn btn-ghost btn-sm"
+                onClick={handleResetView}
+                style={{ fontSize: 'var(--text-xs)', marginLeft: 'var(--space-2)' }}
               >
-                <Icon size={15} />
+                Đặt lại xem
               </button>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* ── Info Panel ── */}
-        <div className="table-container" style={{ padding: 'var(--space-5)' }}>
-          {/* Back + Edit */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              onClick={() => navigate('/tai-lieu')}
-            >
-              <ArrowLeft size={14} /> Quay lại
-            </button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Pencil}
-              onClick={() => navigate(`/tai-lieu/${id}/sua`)}
-            >
-              Chỉnh sửa
-            </Button>
-          </div>
-
-          {/* Title section */}
-          <div style={{ marginBottom: 'var(--space-5)' }}>
+        {/* ── Metadata & History Panel (Right 1/3) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {/* Main Info */}
+          <div className="table-container" style={{ padding: 'var(--space-5)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', color: 'var(--color-primary-700)', fontWeight: 'var(--weight-bold)' }}>
                 {doc.code}
               </span>
               <Badge variant={TYPE_BADGE_VARIANT[doc.type] || 'default'}>{doc.type_label}</Badge>
+              {doc.is_copy && (
+                <span style={{ fontSize: '10px', color: 'var(--color-primary-700)', background: 'var(--color-primary-100)', padding: '1px 6px', borderRadius: 'var(--radius-sm)' }}>
+                  📋 Đã sao chép
+                </span>
+              )}
             </div>
-            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--weight-bold)', lineHeight: 'var(--leading-tight)', marginBottom: 'var(--space-1)' }}>
+
+            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--weight-bold)', marginBottom: 'var(--space-4)', color: 'var(--text-primary)' }}>
               {doc.title}
             </h2>
+
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              <InfoRow label="Người tạo" value={doc.owner_username || `#${doc.owner_id}`} />
+              <InfoRow label="Ngày tạo"  value={formatDate(doc.created_at)} />
+              <InfoRow label="Ngày sửa"  value={formatDate(doc.updated_at)} />
+              <InfoRow label="Chế độ xử lý" value={doc.process_mode ? `OpenCV (${doc.process_mode})` : 'Chưa có'} />
+            </div>
+
+            <div>
+              <p style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)', textTransform: 'uppercase' }}>
+                Mô tả
+              </p>
+              <p style={{
+                fontSize: 'var(--text-sm)',
+                color: doc.description ? 'var(--text-primary)' : 'var(--text-muted)',
+                lineHeight: 'var(--leading-relaxed)',
+                background: 'var(--bg-muted)',
+                padding: 'var(--space-3)',
+                borderRadius: 'var(--radius-md)',
+                margin: 0
+              }}>
+                {doc.description || 'Chưa có mô tả chi tiết.'}
+              </p>
+            </div>
           </div>
 
-          {/* Info rows */}
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <InfoRow label="Người tạo" value={`Người dùng #${doc.owner_id}`} />
-            <InfoRow label="Ngày tạo"  value={formatDate(doc.created_at)} />
-            <InfoRow label="Cập nhật"  value={formatDate(doc.updated_at)} />
-          </div>
+          {/* History Section (5 recent audit operations) */}
+          <div className="table-container" style={{ padding: 'var(--space-5)' }}>
+            <h4 style={{
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--weight-semibold)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              marginBottom: 'var(--space-3)'
+            }}>
+              <Clock size={16} color="var(--color-primary-600)" />
+              Lịch sử thao tác (5 dòng gần nhất)
+            </h4>
 
-          {/* Description */}
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
-              Mô tả
-            </p>
-            <p style={{ fontSize: 'var(--text-base)', color: doc.description ? 'var(--text-primary)' : 'var(--text-muted)', lineHeight: 'var(--leading-relaxed)' }}>
-              {doc.description || 'Chưa có mô tả.'}
-            </p>
-          </div>
+            {loadingHistory && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Đang tải lịch sử...</p>}
 
-          {/* Actions */}
-          <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: 'var(--space-4)', display: 'flex', gap: 'var(--space-2)' }}>
-            <Button variant="secondary" size="sm" icon={Copy} onClick={handleCopy}>
-              Sao chép
-            </Button>
-            <div style={{ flex: 1 }} />
-            <Button
-              variant="danger"
-              size="sm"
-              icon={Trash2}
-              onClick={() => setDeleteOpen(true)}
-            >
-              Xóa
-            </Button>
+            {!loadingHistory && history.length === 0 && (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+                Chưa có nhật ký hoạt động nào cho tài liệu này.
+              </p>
+            )}
+
+            {!loadingHistory && history.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {history.map((item) => (
+                  <div key={item.id} style={{
+                    fontSize: 'var(--text-xs)',
+                    padding: 'var(--space-2)',
+                    background: 'var(--bg-muted)',
+                    borderRadius: 'var(--radius-sm)',
+                    borderLeft: '3px solid var(--color-primary-500)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--text-primary)' }}>
+                        {item.action}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {formatDate(item.created_at)}
+                      </span>
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)' }}>
+                      Thực hiện bởi: {item.actor_username}
+                    </div>
+                    {item.detail && (
+                      <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                        {item.detail}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
       </div>
 
       <ConfirmDialog

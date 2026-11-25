@@ -1,7 +1,12 @@
 import * as docRepo from '../repositories/document.repository.js';
 
 const VALID_TYPES = ['hoa_don', 'hop_dong', 'giay_to', 'bien_ban', 'khac'];
-const VALID_SORTS = ['created_at_desc', 'title_asc'];
+const VALID_SORTS = [
+  'created_at_desc', 'created_at_asc',
+  'title_asc', 'title_desc',
+  'code_asc', 'code_desc',
+  'type_asc', 'type_desc',
+];
 
 function validateDocumentBody({ title, type, description }, { requireAll = true } = {}) {
   const fields = {};
@@ -34,7 +39,7 @@ function validateDocumentBody({ title, type, description }, { requireAll = true 
 export async function listDocuments(req, res, next) {
   try {
     const pool = req.app.locals.pool;
-    const { search, type, page, limit, sort } = req.query;
+    const { search, type, page, limit, sort, isFavorite, isDeleted, folderName } = req.query;
     const fields = {};
     if (search !== undefined && (typeof search !== 'string' || search.length > 150)) {
       fields.search = 'Từ khóa tìm kiếm tối đa 150 ký tự.';
@@ -42,7 +47,7 @@ export async function listDocuments(req, res, next) {
     if (type !== undefined && type !== '' && (typeof type !== 'string' || !VALID_TYPES.includes(type))) {
       fields.type = 'Loại tài liệu không hợp lệ.';
     }
-    if (page !== undefined && (typeof page !== 'string' || !/^[1-9]\d*$/.test(page) || !Number.isSafeInteger(Number(page)) || Number(page) > 1000000)) {
+    if (page !== undefined && (typeof page !== 'string' || !/^[1-9]\d*$/.test(page) || Number(page) > 1000000)) {
       fields.page = 'Trang phải là số nguyên dương.';
     }
     if (limit !== undefined && (typeof limit !== 'string' || !/^[1-9]\d*$/.test(limit) || Number(limit) > 100)) {
@@ -54,12 +59,22 @@ export async function listDocuments(req, res, next) {
     if (Object.keys(fields).length) {
       return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Tham số truy vấn không hợp lệ.', fields } });
     }
-    const { rows, total } = await docRepo.findAll(pool, {
-      search, type, page, limit, sort,
-      ownerId: req.user.role === 'admin' ? undefined : req.user.id,
-    });
-    const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+
+    const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
     const safePage = Math.max(Number(page) || 1, 1);
+
+    const { rows, total } = await docRepo.findAll(pool, {
+      search,
+      type,
+      page: safePage,
+      limit: safeLimit,
+      sort: sort || 'created_at_desc',
+      ownerId: req.user.role === 'admin' ? undefined : req.user.id,
+      isFavorite: isFavorite === 'true' || isFavorite === true,
+      isDeleted: isDeleted === 'true' || isDeleted === true,
+      folderName,
+    });
+
     return res.status(200).json({
       ok: true,
       data: {
@@ -67,9 +82,31 @@ export async function listDocuments(req, res, next) {
         total,
         page: safePage,
         limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit),
+        totalPages: Math.ceil(total / safeLimit) || 1,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/documents/folders
+export async function getFolders(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const folders = await docRepo.getFolderStats(pool, req.user.role === 'admin' ? undefined : req.user.id);
+    return res.status(200).json({ ok: true, data: folders });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/documents/next-code
+export async function getNextCode(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const nextCode = await docRepo.getNextExpectedCode(pool);
+    return res.status(200).json({ ok: true, data: { nextCode } });
   } catch (err) {
     next(err);
   }
@@ -99,12 +136,24 @@ export async function getDocument(req, res, next) {
   }
 }
 
+// GET /api/documents/:id/history
+export async function getDocumentHistory(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const id = Number(req.params.id);
+    const history = await docRepo.getDocumentHistory(pool, id);
+    return res.status(200).json({ ok: true, data: history });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // POST /api/documents
 export async function createDocument(req, res, next) {
   try {
     const pool = req.app.locals.pool;
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-    const { title, type, description } = body;
+    const { title, type, description, folderName } = body;
     const errors = validateDocumentBody({ title, type, description }, { requireAll: true });
     if (errors) {
       return res.status(422).json({
@@ -117,6 +166,7 @@ export async function createDocument(req, res, next) {
       type,
       description: description ? String(description) : '',
       ownerId: req.user.id,
+      folderName: folderName || 'Tài liệu nội bộ',
     });
     return res.status(201).json({ ok: true, data: doc });
   } catch (err) {
@@ -136,8 +186,8 @@ export async function updateDocument(req, res, next) {
       });
     }
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-    const { title, type, description } = body;
-    const errors = validateDocumentBody({ title, type, description }, { requireAll: true });
+    const { title, type, description, folderName } = body;
+    const errors = validateDocumentBody({ title, type, description }, { requireAll: false });
     if (errors) {
       return res.status(422).json({
         ok: false,
@@ -148,7 +198,9 @@ export async function updateDocument(req, res, next) {
       title: title !== undefined ? String(title).trim() : undefined,
       type,
       description: description !== undefined ? String(description) : undefined,
+      folderName,
     }, req.user.role === 'admin' ? undefined : req.user.id);
+
     if (!doc) {
       return res.status(404).json({
         ok: false,
@@ -161,7 +213,7 @@ export async function updateDocument(req, res, next) {
   }
 }
 
-// DELETE /api/documents/:id
+// DELETE /api/documents/:id (Permanent Delete)
 export async function deleteDocument(req, res, next) {
   try {
     const pool = req.app.locals.pool;
@@ -180,6 +232,200 @@ export async function deleteDocument(req, res, next) {
       });
     }
     return res.status(200).json({ ok: true, data: { id } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/:id/favorite
+export async function toggleFavorite(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const id = Number(req.params.id);
+    const updated = await docRepo.toggleFavorite(pool, id, req.user.role === 'admin' ? undefined : req.user.id);
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' } });
+    }
+    return res.status(200).json({ ok: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/:id/trash (Soft delete / Move to recycle bin)
+export async function moveToTrash(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const id = Number(req.params.id);
+    const updated = await docRepo.moveToTrash(pool, id, req.user.role === 'admin' ? undefined : req.user.id);
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' } });
+    }
+    return res.status(200).json({ ok: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/:id/restore (Restore from recycle bin)
+export async function restoreFromTrash(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const id = Number(req.params.id);
+    const updated = await docRepo.restoreFromTrash(pool, id, req.user.role === 'admin' ? undefined : req.user.id);
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' } });
+    }
+    return res.status(200).json({ ok: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/documents/trash/empty
+export async function emptyTrash(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const count = await docRepo.emptyTrash(pool, req.user.role === 'admin' ? undefined : req.user.id);
+    return res.status(200).json({ ok: true, data: { deletedCount: count } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/:id/move
+export async function moveDocument(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const id = Number(req.params.id);
+    const { folderName } = req.body || {};
+    if (!folderName) {
+      return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Vui lòng chọn thư mục đích.' } });
+    }
+    const updated = await docRepo.moveToFolder(pool, id, folderName, req.user.role === 'admin' ? undefined : req.user.id);
+    return res.status(200).json({ ok: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/bulk-delete
+export async function bulkDeleteDocuments(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(422).json({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Danh sách ID không hợp lệ.' },
+      });
+    }
+    const validIds = ids.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+    const count = await docRepo.bulkRemove(pool, validIds, req.user.role === 'admin' ? undefined : req.user.id);
+    return res.status(200).json({ ok: true, data: { deletedCount: count } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/:id/copy
+export async function copyDocument(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' },
+      });
+    }
+    const newDoc = await docRepo.copy(pool, id, req.user.role === 'admin' ? undefined : req.user.id);
+    if (!newDoc) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: 'NOT_FOUND', message: 'Không thể sao chép tài liệu này.' },
+      });
+    }
+    return res.status(201).json({ ok: true, data: newDoc });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/bulk-copy
+export async function bulkCopyDocuments(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(422).json({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Danh sách ID không hợp lệ.' },
+      });
+    }
+    const validIds = ids.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+    const copied = await docRepo.bulkCopy(pool, validIds, req.user.role === 'admin' ? undefined : req.user.id);
+    return res.status(201).json({ ok: true, data: { items: copied, count: copied.length } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/documents/import
+export async function importDocuments(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const { items } = req.body || {};
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(422).json({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Dữ liệu nhập trống.' },
+      });
+    }
+
+    const validItems = [];
+    const errorRows = [];
+
+    items.forEach((item, index) => {
+      const rowNum = index + 1;
+      const title = String(item.title || '').trim();
+      const type = String(item.type || '').trim().toLowerCase();
+      const description = String(item.description || '').trim();
+
+      if (!title) {
+        errorRows.push({ row: rowNum, column: 'title', message: 'Tiêu đề không được để trống' });
+        return;
+      }
+      if (title.length > 150) {
+        errorRows.push({ row: rowNum, column: 'title', message: 'Tiêu đề vượt quá 150 ký tự' });
+        return;
+      }
+      if (!VALID_TYPES.includes(type)) {
+        errorRows.push({ row: rowNum, column: 'type', message: `Loại phải là một trong: ${VALID_TYPES.join(', ')}` });
+        return;
+      }
+      if (description.length > 500) {
+        errorRows.push({ row: rowNum, column: 'description', message: 'Mô tả vượt quá 500 ký tự' });
+        return;
+      }
+
+      validItems.push({ title, type, description });
+    });
+
+    let inserted = [];
+    if (validItems.length > 0) {
+      inserted = await docRepo.importDocuments(pool, validItems, req.user.id);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        totalReceived: items.length,
+        insertedCount: inserted.length,
+        errorCount: errorRows.length,
+        errors: errorRows,
+      },
+    });
   } catch (err) {
     next(err);
   }

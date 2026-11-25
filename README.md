@@ -2,6 +2,8 @@
 
 Web app đồ án số hóa và quản lý tài liệu. Giao diện dùng React/Vite, API dùng Express/PostgreSQL, xử lý ảnh dùng Python/OpenCV.
 
+> 📖 **Xem hướng dẫn cài đặt và chạy chi tiết từ A đến Z tại:** [HUONG_DAN_CHAY_A_DEN_Z.md](file:///d:/smatcan/smart-scan/HUONG_DAN_CHAY_A_DEN_Z.md)
+
 ## Yêu cầu
 
 - Node.js `20.19+` và npm.
