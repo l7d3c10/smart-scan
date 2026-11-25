@@ -1,25 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Folder,
-  FolderPlus,
-  FolderOpen,
-  ArrowRight,
-  ArrowLeft,
-  RefreshCw,
-  Trash2,
-  Eye,
-  Pencil,
-  FolderInput,
-} from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Folder, FolderPlus, ArrowRight, RefreshCw, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { documentService } from '../services/document.service.js';
 import { Button } from '../components/ui/Button.jsx';
-import { Badge } from '../components/ui/Badge.jsx';
-import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { useToast } from '../hooks/useToast.js';
 import { ToastContainer } from '../components/ui/ToastContainer.jsx';
-import { DocumentDetailsDrawer } from '../components/documents/DocumentDetailsDrawer.jsx';
-import { MoveDocumentModal } from '../components/documents/MoveDocumentModal.jsx';
+import DocumentListPage from './DocumentListPage.jsx';
 
 const DEFAULT_FOLDER_CARDS = [
   { name: 'Tài liệu nội bộ', desc: 'Thư mục lưu trữ tài liệu nội bộ công ty', iconColor: '#2563eb', count: 0 },
@@ -29,16 +15,7 @@ const DEFAULT_FOLDER_CARDS = [
   { name: 'Chứng từ tài chính quý 4', desc: 'Hóa đơn và biên lai thanh toán', iconColor: '#dc2626', count: 0 },
 ];
 
-const TYPE_BADGE_VARIANT = {
-  hoa_don:  'danger',
-  hop_dong: 'info',
-  giay_to:  'success',
-  bien_ban: 'warning',
-  khac:     'default',
-};
-
 export default function FolderManagementPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeFolder = searchParams.get('folder') || '';
 
@@ -47,12 +24,6 @@ export default function FolderManagementPage() {
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-
-  // Documents inside the currently opened folder
-  const [folderDocs, setFolderDocs] = useState([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [drawerDoc, setDrawerDoc] = useState(null);
-  const [moveDoc, setMoveDoc] = useState(null);
 
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
 
@@ -77,32 +48,11 @@ export default function FolderManagementPage() {
     }
   }, []);
 
-  const fetchFolderDocuments = useCallback(async (folderName) => {
-    if (!folderName) return;
-    setDocsLoading(true);
-    try {
-      const res = await documentService.list({ folderName, limit: 100 });
-      const items = res?.items || res?.data?.items || [];
-      setFolderDocs(items);
-    } catch {
-      setFolderDocs([]);
-      toastError('Không thể tải danh sách tài liệu trong thư mục.');
-    } finally {
-      setDocsLoading(false);
-    }
-  }, [toastError]);
-
   useEffect(() => {
-    fetchFolders();
-  }, [fetchFolders]);
-
-  useEffect(() => {
-    if (activeFolder) {
-      fetchFolderDocuments(activeFolder);
-    } else {
-      setFolderDocs([]);
+    if (!activeFolder) {
+      fetchFolders();
     }
-  }, [activeFolder, fetchFolderDocuments]);
+  }, [activeFolder, fetchFolders]);
 
   const handleCreateFolder = async (e) => {
     e.preventDefault();
@@ -150,186 +100,19 @@ export default function FolderManagementPage() {
 
   const handleBackToFolders = () => {
     setSearchParams({});
-    fetchFolders();
   };
 
-  const handleCopyDoc = async (id) => {
-    try {
-      const newDoc = await documentService.copy(id);
-      toastSuccess(`Đã nhân bản tài liệu thành công: ${newDoc.code}`);
-      fetchFolderDocuments(activeFolder);
-      fetchFolders();
-    } catch {
-      toastError('Không thể sao chép tài liệu.');
-    }
-  };
-
-  const handleMoveDoc = async (id, targetFolderName) => {
-    try {
-      await documentService.moveToFolder(id, targetFolderName);
-      toastSuccess(`Đã chuyển tài liệu sang thư mục "${targetFolderName}".`);
-      fetchFolderDocuments(activeFolder);
-      fetchFolders();
-    } catch (err) {
-      toastError(err.message || 'Lỗi khi di chuyển tài liệu.');
-    }
-  };
-
-  // --- VIEW 1: Inside a specific folder ---
+  // When a folder is opened, reuse full DocumentListPage filtered by that folder
   if (activeFolder) {
-    const currentFolderMeta = folders.find((f) => f.name === activeFolder);
     return (
-      <>
-        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 4 }}>
-              <button
-                type="button"
-                onClick={handleBackToFolders}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  color: 'var(--color-primary-600)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 'var(--weight-medium)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <ArrowLeft size={15} /> Quản lý thư mục
-              </button>
-              <span style={{ color: 'var(--text-muted)' }}>/</span>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{activeFolder}</span>
-            </div>
-            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <FolderOpen size={24} color={currentFolderMeta?.iconColor || 'var(--color-primary-600)'} />
-              {activeFolder}
-              <span style={{
-                fontSize: 'var(--text-xs)',
-                fontWeight: 'bold',
-                background: 'var(--bg-muted)',
-                padding: '2px 10px',
-                borderRadius: 'var(--radius-full)',
-                color: 'var(--text-secondary)',
-              }}>
-                {folderDocs.length} tài liệu
-              </span>
-            </h1>
-            {currentFolderMeta?.desc && (
-              <p className="page-desc">{currentFolderMeta.desc}</p>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={handleBackToFolders}>
-              Danh sách thư mục
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={RefreshCw}
-              onClick={() => fetchFolderDocuments(activeFolder)}
-              loading={docsLoading}
-            >
-              Làm mới
-            </Button>
-          </div>
-        </div>
-
-        <div className="table-container">
-          {folderDocs.length === 0 && !docsLoading ? (
-            <EmptyState
-              icon={FolderOpen}
-              title={`Thư mục "${activeFolder}" chưa có tài liệu nào`}
-              description="Bạn có thể di chuyển tài liệu từ mục Tất cả tài liệu vào thư mục này."
-              action={
-                <Button size="sm" variant="secondary" icon={ArrowLeft} onClick={handleBackToFolders}>
-                  Quay lại danh sách thư mục
-                </Button>
-              }
-            />
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 110 }}>Mã tài liệu</th>
-                  <th>Tên tài liệu</th>
-                  <th style={{ width: 130 }}>Loại</th>
-                  <th style={{ width: 160 }}>Trạng thái ảnh</th>
-                  <th style={{ width: 130 }}>Ngày cập nhật</th>
-                  <th style={{ width: 150, textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {folderDocs.map((doc) => (
-                  <tr key={doc.id}>
-                    <td>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>{doc.code}</span>
-                    </td>
-                    <td>
-                      <span
-                        style={{ fontWeight: 'var(--weight-medium)', cursor: 'pointer' }}
-                        onClick={() => setDrawerDoc(doc)}
-                      >
-                        {doc.title}
-                      </span>
-                    </td>
-                    <td>
-                      <Badge variant={TYPE_BADGE_VARIANT[doc.type] || 'default'}>{doc.type_label}</Badge>
-                    </td>
-                    <td>
-                      {doc.processed_path || doc.original_path ? (
-                        <Badge variant="success">Đã có ảnh</Badge>
-                      ) : (
-                        <Badge variant="default">Chưa có ảnh</Badge>
-                      )}
-                    </td>
-                    <td style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                      {new Date(doc.updated_at || doc.created_at).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button className="btn-icon" title="Xem chi tiết" onClick={() => setDrawerDoc(doc)}>
-                          <Eye size={15} color="var(--color-primary-600)" />
-                        </button>
-                        <button className="btn-icon" title="Di chuyển thư mục" onClick={() => setMoveDoc(doc)}>
-                          <FolderInput size={14} />
-                        </button>
-                        <button className="btn-icon" title="Chỉnh sửa" onClick={() => navigate(`/tai-lieu/${doc.id}/sua`)}>
-                          <Pencil size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <DocumentDetailsDrawer
-          doc={drawerDoc}
-          isOpen={Boolean(drawerDoc)}
-          onClose={() => setDrawerDoc(null)}
-          onCopy={handleCopyDoc}
-        />
-
-        <MoveDocumentModal
-          doc={moveDoc}
-          isOpen={Boolean(moveDoc)}
-          onClose={() => setMoveDoc(null)}
-          onMove={handleMoveDoc}
-        />
-
-        <ToastContainer toasts={toasts} onClose={removeToast} />
-      </>
+      <DocumentListPage
+        key={activeFolder}
+        folderName={activeFolder}
+        onBackToFolders={handleBackToFolders}
+      />
     );
   }
 
-  // --- VIEW 2: Folder Grid ---
   return (
     <>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -5,7 +5,7 @@ import {
   FileWarning, AlertCircle, Sparkles, ChevronDown,
   SlidersHorizontal, HelpCircle, CheckSquare, Square,
   ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet,
-  LayoutList, LayoutGrid, FileText, Download, Folder,
+  LayoutList, LayoutGrid, FileText, Download, Folder, FolderOpen, ArrowLeft,
   Receipt, FileCheck, FileSignature, FileSpreadsheet as FileReport, Files,
   Star, Share2, History, FolderInput
 } from 'lucide-react';
@@ -82,7 +82,7 @@ function truncate(str, n) {
   return str.length > n ? str.slice(0, n) + '…' : str;
 }
 
-export default function DocumentListPage() {
+export default function DocumentListPage({ folderName = '', onBackToFolders = null } = {}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -174,13 +174,14 @@ export default function DocumentListPage() {
   // Sync URL
   useEffect(() => {
     const params = {};
+    if (folderName) params.folder = folderName;
     if (search) params.search = search;
     if (type) params.type = type;
     if (sort !== 'created_at_desc') params.sort = sort;
     if (page > 1) params.page = page;
     if (limit !== 10) params.limit = limit;
     setSearchParams(params, { replace: true });
-  }, [search, type, sort, page, limit, setSearchParams]);
+  }, [folderName, search, type, sort, page, limit, setSearchParams]);
 
   const toggleColumn = (colKey) => {
     setColumns((prev) => {
@@ -191,7 +192,7 @@ export default function DocumentListPage() {
   };
 
   // Fetch documents
-  const { data, loading, error, refetch } = useDocuments({ search, type, page, limit, sort });
+  const { data, loading, error, refetch } = useDocuments({ search, type, page, limit, sort, folderName });
 
   // Clear selections on page changes
   useEffect(() => {
@@ -373,8 +374,41 @@ export default function DocumentListPage() {
       {/* Page Header with DocManage DMS layout */}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div className="page-header-left">
+          {folderName && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 4 }}>
+              <button
+                type="button"
+                onClick={onBackToFolders}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--color-primary-600)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 'var(--weight-medium)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <ArrowLeft size={15} /> Quản lý thư mục
+              </button>
+              <span style={{ color: 'var(--text-muted)' }}>/</span>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{folderName}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <h1 className="page-title" style={{ margin: 0 }}>Quản lý tài liệu chi tiết</h1>
+            <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              {folderName ? (
+                <>
+                  <FolderOpen size={22} color="var(--color-primary-600)" />
+                  {folderName}
+                </>
+              ) : (
+                'Quản lý tài liệu chi tiết'
+              )}
+            </h1>
             <span style={{
               fontSize: 'var(--text-xs)',
               background: 'var(--color-primary-100)',
@@ -387,11 +421,18 @@ export default function DocumentListPage() {
             </span>
           </div>
           <p className="page-desc" style={{ marginTop: 'var(--space-1)', color: 'var(--text-secondary)' }}>
-            Lưu trữ · Sắp xếp · Tra cứu thông minh · Phân quyền an toàn
+            {folderName
+              ? `Đang xem tài liệu trong thư mục "${folderName}" · Đầy đủ chức năng tra cứu & thao tác`
+              : 'Lưu trữ · Sắp xếp · Tra cứu thông minh · Phân quyền an toàn'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+          {folderName && onBackToFolders && (
+            <Button variant="secondary" icon={ArrowLeft} onClick={onBackToFolders}>
+              Danh sách thư mục
+            </Button>
+          )}
           {/* Table / Grid view switcher */}
           <div className="view-mode-toggle">
             <button
