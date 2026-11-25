@@ -62,7 +62,7 @@ CREATE DATABASE smartscan WITH TEMPLATE template0 ENCODING 'UTF8';
 ---
 
 ### 1.2. Nạp cấu trúc bảng và dữ liệu mẫu
-Trong pgAdmin, chuyển sang database **`smartscan`** vừa tạo, mở **Query Tool** mới và thực thi lần lượt **4 file SQL** có sẵn trong thư mục dự án theo thứ tự:
+Trong pgAdmin, chuyển sang database **`smartscan`** vừa tạo, mở **Query Tool** mới và thực thi lần lượt **5 file SQL** có sẵn trong thư mục dự án theo thứ tự:
 
 #### 🔹 File 1: Khởi tạo bảng và chuỗi sinh mã (`document_code_seq`)
 - Mở file: `server/db/migrations/001_initial_schema.sql`
@@ -72,11 +72,15 @@ Trong pgAdmin, chuyển sang database **`smartscan`** vừa tạo, mở **Query 
 - Mở file: `server/db/migrations/002_auth_bootstrap.sql`
 - Dán toàn bộ nội dung vào Query Tool và bấm **F5 (Play ▶)**.
 
-#### 🔹 File 3: Nâng cấp tính năng Kho tài liệu mở rộng (Folders, Favorites, Trash)
+#### 🔹 File 3: Nâng cấp tính năng Kho tài liệu mở rộng (Favorites, Trash, Folder column)
 - Mở file: `server/db/migrations/003_dms_features.sql`
 - Dán toàn bộ nội dung vào Query Tool và bấm **F5 (Play ▶)** *(Backend cũng tự động bổ sung cột nếu thiếu)*.
 
-#### 🔹 File 4: Nạp 30 tài liệu mẫu đa dạng (Hóa đơn, Hợp đồng, Biên bản...)
+#### 🔹 File 4: Tạo bảng `folders` và thư mục mặc định
+- Mở file: `server/db/migrations/004_folders_table.sql`
+- Dán toàn bộ nội dung vào Query Tool và bấm **F5 (Play ▶)** *(Backend cũng tự động tạo nếu thiếu)*.
+
+#### 🔹 File 5: Nạp 30 tài liệu mẫu đa dạng (Hóa đơn, Hợp đồng, Biên bản...)
 - Mở file: `server/db/seeds/001_seed_data.sql`
 - Dán toàn bộ nội dung vào Query Tool và bấm **F5 (Play ▶)**.
 

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Folder, FolderPlus, Check, ArrowRight } from 'lucide-react';
 import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
+import { documentService } from '../../services/document.service.js';
 
 const DEFAULT_FOLDERS = [
   'Tài liệu nội bộ',
@@ -17,14 +18,34 @@ export function MoveDocumentModal({ doc, isOpen, onClose, onMove }) {
   const [folders, setFolders] = useState(DEFAULT_FOLDERS);
   const [showNewFolder, setShowNewFolder] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      documentService.folders().then((res) => {
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        if (list.length > 0) {
+          setFolders(list.map((f) => f.name));
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen || !doc) return null;
 
-  const handleAddFolder = () => {
-    if (!newFolderName.trim()) return;
-    setFolders([...folders, newFolderName.trim()]);
-    setSelectedFolder(newFolderName.trim());
-    setNewFolderName('');
-    setShowNewFolder(false);
+  const handleAddFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    try {
+      await documentService.createFolder({ name });
+      setFolders((prev) => prev.includes(name) ? prev : [...prev, name]);
+      setSelectedFolder(name);
+      setNewFolderName('');
+      setShowNewFolder(false);
+    } catch {
+      setFolders((prev) => prev.includes(name) ? prev : [...prev, name]);
+      setSelectedFolder(name);
+      setNewFolderName('');
+      setShowNewFolder(false);
+    }
   };
 
   const handleConfirm = () => {

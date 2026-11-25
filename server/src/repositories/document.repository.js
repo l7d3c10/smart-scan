@@ -288,24 +288,74 @@ export async function moveToFolder(pool, id, folderName, ownerId) {
 }
 
 /**
- * getFolderStats – returns folders with document counts.
+ * getFolderStats – returns folders with document counts from folders table.
  */
 export async function getFolderStats(pool, ownerId) {
   const params = [];
-  let ownerCondition = '';
+  let userCondition = '';
   if (ownerId !== undefined) {
     params.push(ownerId);
-    ownerCondition = ` AND owner_id = $1`;
+    userCondition = ` AND (f.owner_id IS NULL OR f.owner_id = $1)`;
   }
   const res = await pool.query(
-    `SELECT COALESCE(folder_name, 'Tài liệu nội bộ') AS name, COUNT(*) AS count
-     FROM documents
-     WHERE (is_deleted IS NULL OR is_deleted = FALSE)${ownerCondition}
-     GROUP BY COALESCE(folder_name, 'Tài liệu nội bộ')
-     ORDER BY count DESC`,
+    `SELECT 
+       f.id,
+       f.name,
+       COALESCE(f.description, '') AS description,
+       COUNT(d.id)::int AS count,
+       f.created_at
+     FROM folders f
+     LEFT JOIN documents d ON d.folder_name = f.name AND (d.is_deleted IS NULL OR d.is_deleted = FALSE)
+     WHERE 1=1 ${userCondition}
+     GROUP BY f.id, f.name, f.description, f.created_at
+     ORDER BY f.id ASC`,
     params
   );
   return res.rows;
+}
+
+/**
+ * createFolder – creates a new folder in folders table.
+ */
+export async function createFolder(pool, { name, description = '', ownerId = null }) {
+  const res = await pool.query(
+    `INSERT INTO folders (name, description, owner_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (name, COALESCE(owner_id, 0)) DO UPDATE SET description = EXCLUDED.description, updated_at = CURRENT_TIMESTAMP
+     RETURNING *`,
+    [name.trim(), (description || '').trim(), ownerId]
+  );
+  return res.rows[0];
+}
+
+/**
+ * deleteFolder – deletes a folder from folders table and moves its documents to 'Tài liệu nội bộ'.
+ */
+export async function deleteFolder(pool, name, ownerId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    let delQuery = 'DELETE FROM folders WHERE name = $1';
+    const params = [name];
+    if (ownerId !== undefined) {
+      params.push(ownerId);
+      delQuery += ' AND (owner_id = $2 OR owner_id IS NULL)';
+    }
+    const delRes = await client.query(delQuery, params);
+    
+    // Update documents in this folder to default folder
+    await client.query(
+      `UPDATE documents SET folder_name = 'Tài liệu nội bộ' WHERE folder_name = $1`,
+      [name]
+    );
+    await client.query('COMMIT');
+    return (delRes.rowCount ?? 0) > 0;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 /**

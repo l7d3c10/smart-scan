@@ -101,6 +101,46 @@ export async function getFolders(req, res, next) {
   }
 }
 
+// POST /api/documents/folders
+export async function createFolder(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const { name, description } = req.body || {};
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Tên thư mục không được để trống.' } });
+    }
+    if (name.trim().length > 150) {
+      return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Tên thư mục tối đa 150 ký tự.' } });
+    }
+    const folder = await docRepo.createFolder(pool, {
+      name: name.trim(),
+      description: (description || '').trim().slice(0, 500),
+      ownerId: req.user.role === 'admin' ? null : req.user.id,
+    });
+    return res.status(201).json({ ok: true, data: folder });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/documents/folders/:name
+export async function deleteFolder(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const name = decodeURIComponent(req.params.name);
+    if (!name || name === 'Tài liệu nội bộ') {
+      return res.status(400).json({ ok: false, error: { code: 'FORBIDDEN', message: 'Không thể xóa thư mục mặc định của hệ thống.' } });
+    }
+    const success = await docRepo.deleteFolder(pool, name, req.user.role === 'admin' ? undefined : req.user.id);
+    if (!success) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Thư mục không tồn tại.' } });
+    }
+    return res.status(200).json({ ok: true, data: { message: `Đã xóa thư mục ${name} thành công.` } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/documents/next-code
 export async function getNextCode(req, res, next) {
   try {

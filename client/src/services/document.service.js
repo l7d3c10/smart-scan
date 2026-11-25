@@ -15,6 +15,8 @@ export const documentService = {
   },
   nextCode: () => api.get('/documents/next-code'),
   folders: () => api.get('/documents/folders'),
+  createFolder: (data) => api.post('/documents/folders', data),
+  deleteFolder: (name) => api.delete(`/documents/folders/${encodeURIComponent(name)}`),
   get: (id) => api.get(`/documents/${id}`),
   history: (id) => api.get(`/documents/${id}/history`),
   create: (data) => api.post('/documents', data),

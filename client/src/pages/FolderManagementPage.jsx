@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Folder, FolderPlus, ArrowRight, FileText, Plus, RefreshCw } from 'lucide-react';
+import { Folder, FolderPlus, ArrowRight, FileText, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { documentService } from '../services/document.service.js';
 import { Button } from '../components/ui/Button.jsx';
 import { useToast } from '../hooks/useToast.js';
@@ -7,11 +7,11 @@ import { ToastContainer } from '../components/ui/ToastContainer.jsx';
 import { useNavigate } from 'react-router-dom';
 
 const DEFAULT_FOLDER_CARDS = [
-  { name: 'Tài liệu nội bộ', desc: 'Quy định, chính sách và biểu mẫu công ty', iconColor: '#2563eb', count: 12 },
-  { name: 'Dự án Marketing', desc: 'Kế hoạch quảng cáo, báo cáo chiến dịch', iconColor: '#d97706', count: 8 },
-  { name: 'Dự án IT & Công nghệ', desc: 'Tài liệu kỹ thuật, kiến trúc hệ thống', iconColor: '#16a34a', count: 15 },
-  { name: 'Hợp đồng đối tác 2026', desc: 'Hợp đồng kinh tế, biên bản hợp tác', iconColor: '#9333ea', count: 6 },
-  { name: 'Chứng từ tài chính quý 4', desc: 'Hóa đơn GTGT, phiếu chi, sao kê', iconColor: '#dc2626', count: 10 },
+  { name: 'Tài liệu nội bộ', desc: 'Thư mục lưu trữ tài liệu nội bộ công ty', iconColor: '#2563eb', count: 0 },
+  { name: 'Dự án Marketing', desc: 'Các hồ sơ chiến dịch và ấn phẩm truyền thông', iconColor: '#d97706', count: 0 },
+  { name: 'Dự án IT & Công nghệ', desc: 'Tài liệu kỹ thuật và kiến trúc hệ thống', iconColor: '#16a34a', count: 0 },
+  { name: 'Hợp đồng đối tác 2026', desc: 'Hợp đồng kinh tế và thỏa thuận hợp tác', iconColor: '#9333ea', count: 0 },
+  { name: 'Chứng từ tài chính quý 4', desc: 'Hóa đơn và biên lai thanh toán', iconColor: '#dc2626', count: 0 },
 ];
 
 export default function FolderManagementPage() {
@@ -19,6 +19,7 @@ export default function FolderManagementPage() {
   const [folders, setFolders] = useState(DEFAULT_FOLDER_CARDS);
   const [loading, setLoading] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderDesc, setNewFolderDesc] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
 
@@ -30,8 +31,8 @@ export default function FolderManagementPage() {
       if (folderList.length > 0) {
         const merged = folderList.map((f, idx) => ({
           name: f.name,
-          desc: `Chứa ${f.count} tài liệu đã phân loại`,
-          count: Number(f.count),
+          desc: f.description || `Chứa ${f.count} tài liệu đã phân loại`,
+          count: Number(f.count) || 0,
           iconColor: ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626'][idx % 5],
         }));
         setFolders(merged);
@@ -47,24 +48,44 @@ export default function FolderManagementPage() {
     fetchFolders();
   }, []);
 
-  const handleCreateFolder = (e) => {
+  const handleCreateFolder = async (e) => {
     e.preventDefault();
-    if (!newFolderName.trim()) {
+    const name = newFolderName.trim();
+    if (!name) {
       toastError('Vui lòng nhập tên thư mục.');
       return;
     }
-    setFolders([
-      ...folders,
-      {
-        name: newFolderName.trim(),
-        desc: 'Thư mục mới tạo (0 tài liệu)',
-        count: 0,
-        iconColor: '#2563eb',
-      },
-    ]);
-    toastSuccess(`Đã tạo thư mục "${newFolderName.trim()}" thành công!`);
-    setNewFolderName('');
-    setShowCreate(false);
+    try {
+      await documentService.createFolder({
+        name,
+        description: newFolderDesc.trim(),
+      });
+      toastSuccess(`Đã tạo thư mục "${name}" thành công vào Database!`);
+      setNewFolderName('');
+      setNewFolderDesc('');
+      setShowCreate(false);
+      fetchFolders();
+    } catch (err) {
+      toastError(err.message || 'Lỗi khi tạo thư mục vào Database.');
+    }
+  };
+
+  const handleDeleteFolder = async (e, folderName) => {
+    e.stopPropagation();
+    if (folderName === 'Tài liệu nội bộ') {
+      toastError('Không thể xóa thư mục mặc định của hệ thống.');
+      return;
+    }
+    if (!window.confirm(`Bạn có chắc muốn xóa thư mục "${folderName}"? Các tài liệu trong thư mục này sẽ được đưa về "Tài liệu nội bộ".`)) {
+      return;
+    }
+    try {
+      await documentService.deleteFolder(folderName);
+      toastSuccess(`Đã xóa thư mục "${folderName}" khỏi Database.`);
+      fetchFolders();
+    } catch (err) {
+      toastError(err.message || 'Xóa thư mục thất bại.');
+    }
   };
 
   const handleOpenFolder = (folderName) => {
@@ -93,34 +114,50 @@ export default function FolderManagementPage() {
 
       {/* Create Folder Form Bar */}
       {showCreate && (
-        <div style={{
+        <form onSubmit={handleCreateFolder} style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--color-primary-300)',
           borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-4)',
           marginBottom: 'var(--space-5)',
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
           gap: 'var(--space-3)',
           boxShadow: 'var(--shadow-md)',
         }}>
-          <FolderPlus size={20} color="var(--color-primary-600)" />
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Nhập tên thư mục mới (ví dụ: Dự án ERP 2026)..."
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            style={{ maxWidth: 400 }}
-            autoFocus
-          />
-          <Button variant="primary" size="sm" onClick={handleCreateFolder}>
-            Lưu thư mục
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
-            Hủy
-          </Button>
-        </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <FolderPlus size={20} color="var(--color-primary-600)" />
+            <span style={{ fontWeight: 'bold', fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+              Tạo thư mục mới lưu vào Cơ sở dữ liệu:
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Tên thư mục (ví dụ: Dự án ERP 2026)..."
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              style={{ flex: 1, minWidth: 240 }}
+              autoFocus
+              required
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Mô tả thư mục (tùy chọn)..."
+              value={newFolderDesc}
+              onChange={(e) => setNewFolderDesc(e.target.value)}
+              style={{ flex: 1.5, minWidth: 280 }}
+            />
+            <Button variant="primary" size="sm" type="submit">
+              Lưu vào Database
+            </Button>
+            <Button variant="ghost" size="sm" type="button" onClick={() => setShowCreate(false)}>
+              Hủy
+            </Button>
+          </div>
+        </form>
       )}
 
       {/* Grid of Folders */}
@@ -201,8 +238,20 @@ export default function FolderManagementPage() {
               color: 'var(--color-primary-600)',
               fontWeight: 'var(--weight-semibold)',
             }}>
-              <span>Mở thư mục</span>
-              <ArrowRight size={14} />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Mở thư mục <ArrowRight size={14} />
+              </span>
+              {f.name !== 'Tài liệu nội bộ' && (
+                <button
+                  type="button"
+                  className="btn-icon btn-icon-danger"
+                  title="Xóa thư mục này khỏi Database"
+                  onClick={(e) => handleDeleteFolder(e, f.name)}
+                  style={{ width: 26, height: 26 }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
             </div>
           </div>
         ))}
