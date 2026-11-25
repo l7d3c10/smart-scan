@@ -34,6 +34,12 @@ export function createPool(connectionString) {
       ('Hợp đồng đối tác 2026', 'Hợp đồng kinh tế và thỏa thuận hợp tác', NULL),
       ('Chứng từ tài chính quý 4', 'Hóa đơn và biên lai thanh toán', NULL)
     ON CONFLICT (name, COALESCE(owner_id, 0)) DO NOTHING;
+
+    SELECT setval(
+      'document_code_seq',
+      GREATEST(COALESCE((SELECT MAX(SUBSTRING(code FROM '^TL-(\d+)$')::integer) FROM documents), 0), 1),
+      EXISTS (SELECT 1 FROM documents)
+    );
   `).catch(() => {
     // Graceful fallback if database is not yet ready or during tests
   });

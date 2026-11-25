@@ -23,7 +23,7 @@ export const documentService = {
   update: (id, data) => api.put(`/documents/${id}`, data),
   delete: (id) => api.delete(`/documents/${id}`),
   bulkDelete: (ids) => api.post('/documents/bulk-delete', { ids }),
-  copy: (id) => api.post(`/documents/${id}/copy`),
+  copy: (id, data = {}) => api.post(`/documents/${id}/copy`, data),
   bulkCopy: (ids) => api.post('/documents/bulk-copy', { ids }),
   import: (items) => api.post('/documents/import', { items }),
   toggleFavorite: (id) => api.post(`/documents/${id}/favorite`),

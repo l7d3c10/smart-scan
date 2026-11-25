@@ -25,6 +25,7 @@ import { DocumentDetailsDrawer } from '../components/documents/DocumentDetailsDr
 import { DocumentQuickViewModal } from '../components/documents/DocumentQuickViewModal.jsx';
 import { ShareDocumentModal } from '../components/documents/ShareDocumentModal.jsx';
 import { MoveDocumentModal } from '../components/documents/MoveDocumentModal.jsx';
+import { CopyDocumentModal } from '../components/documents/CopyDocumentModal.jsx';
 import { VersionHistoryModal } from '../components/documents/VersionHistoryModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -124,6 +125,8 @@ export default function DocumentListPage({ folderName = '', onBackToFolders = nu
   const [quickViewDoc, setQuickViewDoc] = useState(null);
   const [shareDoc, setShareDoc]         = useState(null);
   const [moveDoc, setMoveDoc]           = useState(null);
+  const [copyDoc, setCopyDoc]           = useState(null);
+  const [copying, setCopying]           = useState(false);
   const [versionDoc, setVersionDoc]     = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null); // single doc or 'bulk'
   const [deleting, setDeleting]         = useState(false);
@@ -230,13 +233,29 @@ export default function DocumentListPage({ folderName = '', onBackToFolders = nu
   };
 
   // Copy handlers
-  const handleCopySingle = async (id) => {
+  const handleCopySingle = (idOrDoc) => {
+    const target = typeof idOrDoc === 'object' && idOrDoc !== null
+      ? idOrDoc
+      : (data?.items || []).find((d) => d.id === idOrDoc) || drawerDoc || quickViewDoc;
+    if (target) {
+      setCopyDoc(target);
+    }
+  };
+
+  const handleConfirmCopy = async (id, { title, folderName: targetFolder, openEditAfter }) => {
+    setCopying(true);
     try {
-      const newDoc = await documentService.copy(id);
-      toastSuccess(`Đã nhân bản tài liệu thành công: ${newDoc.code}`);
+      const newDoc = await documentService.copy(id, { title, folderName: targetFolder });
+      toastSuccess(`Đã sao chép thành công: ${newDoc.code} → "${targetFolder}"`);
+      setCopyDoc(null);
       refetch();
+      if (openEditAfter && newDoc?.id) {
+        navigate(`/tai-lieu/${newDoc.id}/sua`);
+      }
     } catch {
       toastError('Không thể sao chép tài liệu. Vui lòng thử lại.');
+    } finally {
+      setCopying(false);
     }
   };
 
@@ -1304,6 +1323,15 @@ export default function DocumentListPage({ folderName = '', onBackToFolders = nu
         isOpen={Boolean(moveDoc)}
         onClose={() => setMoveDoc(null)}
         onMove={handleMoveDocument}
+      />
+
+      {/* Copy Document Modal (Chọn tên, thư mục đích, mở sửa) */}
+      <CopyDocumentModal
+        doc={copyDoc}
+        isOpen={Boolean(copyDoc)}
+        onClose={() => setCopyDoc(null)}
+        onConfirm={handleConfirmCopy}
+        copying={copying}
       />
 
       {/* Version History Modal (Màn 14) */}

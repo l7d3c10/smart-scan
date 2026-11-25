@@ -359,11 +359,24 @@ export async function deleteFolder(pool, name, ownerId) {
 }
 
 /**
+ * syncDocumentCodeSeq – aligns document_code_seq with the highest existing TL-XXXX code.
+ */
+async function syncDocumentCodeSeq(pool) {
+  await pool.query(
+    `SELECT setval(
+       'document_code_seq',
+       GREATEST(COALESCE((SELECT MAX(SUBSTRING(code FROM '^TL-(\\d+)$')::integer) FROM documents), 0), 1),
+       EXISTS (SELECT 1 FROM documents)
+     )`
+  );
+}
+
+/**
  * getNextExpectedCode – returns the next projected code without incrementing sequence.
  */
 export async function getNextExpectedCode(pool) {
   const res = await pool.query(
-    `SELECT 'TL-' || LPAD(COALESCE(MAX(SUBSTRING(code FROM 4)::integer), 0) + 1::text, 4, '0') AS next_code 
+    `SELECT 'TL-' || LPAD((COALESCE(MAX(SUBSTRING(code FROM '^TL-(\\d+)$')::integer), 0) + 1)::text, 4, '0') AS next_code
      FROM documents`
   );
   return res.rows[0]?.next_code || 'TL-0001';
@@ -373,16 +386,25 @@ export async function getNextExpectedCode(pool) {
  * create – inserts a new document with auto-generated code from sequence.
  */
 export async function create(pool, { title, type, description = '', ownerId, originalPath = null, processedPath = null, processMode = null, folderName = 'Tài liệu nội bộ' }) {
-  const res = await pool.query(
-    `INSERT INTO documents (code, title, type, description, owner_id, original_path, processed_path, process_mode, folder_name)
+  const insertSql = `INSERT INTO documents (code, title, type, description, owner_id, original_path, processed_path, process_mode, folder_name)
      VALUES (
        'TL-' || LPAD(nextval('document_code_seq')::text, 4, '0'),
        $1, $2, $3, $4, $5, $6, $7, $8
      )
-     RETURNING *`,
-    [title, type, description || '', ownerId, originalPath, processedPath, processMode, folderName || 'Tài liệu nội bộ']
-  );
-  return mapRow(res.rows[0]);
+     RETURNING *`;
+  const params = [title, type, description || '', ownerId, originalPath, processedPath, processMode, folderName || 'Tài liệu nội bộ'];
+  try {
+    const res = await pool.query(insertSql, params);
+    return mapRow(res.rows[0]);
+  } catch (err) {
+    // If sequence lagged behind seeded/imported codes, resync and retry once
+    if (err?.code === '23505') {
+      await syncDocumentCodeSeq(pool);
+      const retryRes = await pool.query(insertSql, params);
+      return mapRow(retryRes.rows[0]);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -470,16 +492,35 @@ export async function bulkRemove(pool, ids, ownerId) {
 }
 
 /**
- * copy – duplicates a single document.
+ * buildCopyTitle – generates smart incremented copy title:
+ * "Title" -> "Title (Bản sao)" -> "Title (Bản sao 2)" -> "Title (Bản sao 3)".
  */
-export async function copy(pool, id, ownerId) {
+function buildCopyTitle(originalTitle) {
+  const match = originalTitle.match(/^(.*?)\s*\(Bản sao(?:\s+(\d+))?\)$/);
+  if (!match) {
+    return `${originalTitle} (Bản sao)`.slice(0, 150);
+  }
+  const base = match[1].trim();
+  const nextNum = match[2] ? Number(match[2]) + 1 : 2;
+  const suffix = ` (Bản sao ${nextNum})`;
+  return `${base.slice(0, Math.max(1, 150 - suffix.length))}${suffix}`;
+}
+
+/**
+ * copy – duplicates a single document, optionally overriding title and target folderName.
+ */
+export async function copy(pool, id, ownerId, { title, folderName } = {}) {
   const original = await findById(pool, id);
   if (!original) return null;
   if (ownerId !== undefined && original.owner_id !== ownerId) return null;
 
-  const newTitle = original.title.endsWith('(Bản sao)')
-    ? original.title
-    : `${original.title} (Bản sao)`.slice(0, 150);
+  const newTitle = (typeof title === 'string' && title.trim())
+    ? title.trim().slice(0, 150)
+    : buildCopyTitle(original.title);
+
+  const targetFolder = (typeof folderName === 'string' && folderName.trim())
+    ? folderName.trim().slice(0, 150)
+    : (original.folder_name || 'Tài liệu nội bộ');
 
   const newDesc = original.description
     ? `${original.description} [Bản sao từ ${original.code}]`.slice(0, 500)
@@ -493,7 +534,7 @@ export async function copy(pool, id, ownerId) {
     originalPath: original.original_path,
     processedPath: original.processed_path,
     processMode: original.process_mode,
-    folderName: original.folder_name,
+    folderName: targetFolder,
   });
 
   return newDoc;
@@ -514,9 +555,7 @@ export async function bulkCopy(pool, ids, ownerId) {
       const original = origRes.rows[0];
       if (ownerId !== undefined && original.owner_id !== ownerId) continue;
 
-      const newTitle = original.title.endsWith('(Bản sao)')
-        ? original.title
-        : `${original.title} (Bản sao)`.slice(0, 150);
+      const newTitle = buildCopyTitle(original.title);
 
       const newDesc = original.description
         ? `${original.description} [Bản sao từ ${original.code}]`.slice(0, 500)

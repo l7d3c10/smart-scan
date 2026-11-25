@@ -379,7 +379,13 @@ export async function copyDocument(req, res, next) {
         error: { code: 'NOT_FOUND', message: 'Tài liệu không tồn tại.' },
       });
     }
-    const newDoc = await docRepo.copy(pool, id, req.user.role === 'admin' ? undefined : req.user.id);
+    const { title, folderName } = req.body && typeof req.body === 'object' ? req.body : {};
+    const newDoc = await docRepo.copy(
+      pool,
+      id,
+      req.user.role === 'admin' ? undefined : req.user.id,
+      { title, folderName }
+    );
     if (!newDoc) {
       return res.status(404).json({
         ok: false,

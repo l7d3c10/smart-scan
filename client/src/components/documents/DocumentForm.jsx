@@ -32,8 +32,9 @@ export function DocumentForm({ mode = 'create', initialData = null, onSubmit, sa
     if (mode === 'create') {
       documentService.nextCode()
         .then((res) => {
-          if (res?.data?.nextCode) {
-            setForm((prev) => ({ ...prev, code: res.data.nextCode }));
+          const nextCode = res?.nextCode || res?.data?.nextCode;
+          if (nextCode) {
+            setForm((prev) => ({ ...prev, code: nextCode }));
           }
         })
         .catch(() => {
