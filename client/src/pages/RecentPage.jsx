@@ -41,7 +41,8 @@ export default function RecentPage() {
     setLoading(true);
     try {
       const res = await documentService.list({ sort: 'created_at_desc', limit: 30 });
-      setDocuments(res?.data?.items || []);
+      const items = res?.items || res?.data?.items || [];
+      setDocuments(items);
     } catch {
       setDocuments([]);
     } finally {

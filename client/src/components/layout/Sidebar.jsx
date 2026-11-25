@@ -120,11 +120,11 @@ export function Sidebar() {
         </div>
 
         <NavLink
-          to="/tai-len"
-          className={`sidebar-nav-item${location.pathname.startsWith('/tai-len') ? ' active' : ''}`}
+          to="/xu-ly-anh"
+          className={`sidebar-nav-item${location.pathname.startsWith('/xu-ly-anh') || location.pathname.startsWith('/tai-len') ? ' active' : ''}`}
         >
           <Upload size={16} />
-          <span className="sidebar-nav-label">Tải ảnh lên</span>
+          <span className="sidebar-nav-label">Xử lý ảnh</span>
         </NavLink>
 
         <NavLink

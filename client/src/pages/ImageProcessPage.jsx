@@ -23,7 +23,15 @@ export default function ImageProcessPage() {
     finally { setBusy(false); }
   }
 
-  useEffect(() => { process(); }, [uploadId]);
+  useEffect(() => {
+    if (uploadId) {
+      const saved = sessionStorage.getItem('smartscan_active_upload');
+      if (!saved) {
+        sessionStorage.setItem('smartscan_active_upload', JSON.stringify({ id: uploadId, name: `Tải lên #${uploadId}` }));
+      }
+    }
+    process();
+  }, [uploadId]);
 
   return <section className="image-workflow">
     <header className="page-header"><div><h1 className="page-title">Xử lý ảnh</h1><p className="page-desc">Chọn chế độ, điều chỉnh phát hiện viền và xem kết quả.</p></div></header>
@@ -43,7 +51,17 @@ export default function ImageProcessPage() {
       {result.warning && <p className="image-warning" role="status">{result.warning}</p>}
       <div className="image-compare" style={{ '--compare': `${compare}%` }}><img src={original} alt="Ảnh gốc" /><img className="processed" src={result.resultUrl} alt="Ảnh sau xử lý" /><input aria-label="So sánh ảnh gốc và kết quả" type="range" min="0" max="100" value={compare} onChange={(event) => setCompare(Number(event.target.value))} /></div>
       <div className="image-step-grid">{result.steps.map((step) => <figure key={step.url}><img src={step.url} alt={step.label} /><figcaption>{step.label}</figcaption></figure>)}</div>
-      <div className="image-actions"><Button onClick={() => navigate('/xu-ly-anh')}>Chọn ảnh khác</Button><Button variant="primary" onClick={() => navigate(`/xu-ly-anh/${uploadId}/luu`)}>Tiếp tục lưu</Button></div>
+      <div className="image-actions">
+        <Button onClick={() => {
+          sessionStorage.removeItem('smartscan_active_upload');
+          navigate('/xu-ly-anh');
+        }}>
+          Chọn ảnh khác
+        </Button>
+        <Button variant="primary" onClick={() => navigate(`/xu-ly-anh/${uploadId}/luu`)}>
+          Tiếp tục lưu
+        </Button>
+      </div>
     </>}
   </section>;
 }

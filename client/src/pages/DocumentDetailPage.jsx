@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, Trash2, Copy,
   FileText, AlertCircle, Image as ImageIcon, ZoomIn, ZoomOut,
-  RotateCw, Maximize2, Download, Clock, User, CheckCircle2,
+  RotateCw, RefreshCw, Maximize2, Download, Clock, User, CheckCircle2,
   Calendar, Upload
 } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -130,13 +130,13 @@ export default function DocumentDetailPage() {
   };
 
   const currentImagePath = imageTab === 'processed' ? doc?.processed_path : doc?.original_path;
-  const currentImageUrl = currentImagePath ? `/api/uploads/${currentImagePath}` : null;
+  const currentImageUrl = currentImagePath && doc?.id ? `/api/documents/${doc.id}/image/${imageTab}` : null;
 
   const handleDownload = () => {
     if (!currentImageUrl) return;
     const a = document.createElement('a');
     a.href = currentImageUrl;
-    a.download = `${doc.code}_${imageTab}.jpg`;
+    a.download = `${doc.code}_${imageTab}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -325,64 +325,77 @@ export default function DocumentDetailPage() {
           <div style={{
             display: 'flex',
             gap: 'var(--space-2)',
-            padding: 'var(--space-2) var(--space-4)',
+            padding: 'var(--space-3) var(--space-4)',
             borderTop: '1px solid var(--border-default)',
             justifyContent: 'center',
             alignItems: 'center',
-            background: 'var(--bg-surface)'
+            background: 'var(--bg-surface)',
+            flexWrap: 'wrap'
           }}>
             <button
-              className="btn-icon"
-              title="Phóng to"
+              className="btn btn-secondary btn-sm"
+              title="Phóng to ảnh"
               onClick={handleZoomIn}
               disabled={!currentImagePath}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <ZoomIn size={16} />
+              <ZoomIn size={15} />
+              <span>Phóng to</span>
             </button>
 
             <button
-              className="btn-icon"
-              title="Thu nhỏ"
+              className="btn btn-secondary btn-sm"
+              title="Thu nhỏ ảnh"
               onClick={handleZoomOut}
               disabled={!currentImagePath}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <ZoomOut size={16} />
+              <ZoomOut size={15} />
+              <span>Thu nhỏ</span>
             </button>
 
             <button
-              className="btn-icon"
-              title="Xoay 90 độ"
+              className="btn btn-primary btn-sm"
+              title="Xoay ảnh 90 độ"
               onClick={handleRotate}
               disabled={!currentImagePath}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <RotateCw size={16} />
+              <RotateCw size={15} />
+              <span>Xoay 90° ({rotation}°)</span>
             </button>
 
             <button
-              className="btn-icon"
+              className="btn btn-secondary btn-sm"
               title="Toàn màn hình"
               onClick={handleToggleFullscreen}
               disabled={!currentImagePath}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <Maximize2 size={16} />
+              <Maximize2 size={15} />
+              <span>Toàn màn hình</span>
             </button>
 
             <button
-              className="btn-icon"
+              className="btn btn-secondary btn-sm"
               title="Tải ảnh về máy"
               onClick={handleDownload}
               disabled={!currentImagePath}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <Download size={16} />
+              <Download size={15} />
+              <span>Tải về</span>
             </button>
 
             {currentImagePath && (zoom !== 1 || rotation !== 0) && (
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={handleResetView}
-                style={{ fontSize: 'var(--text-xs)', marginLeft: 'var(--space-2)' }}
+                title="Khôi phục góc xoay và độ thu phóng ban đầu"
+                style={{ fontSize: 'var(--text-xs)', marginLeft: 'var(--space-2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
               >
-                Đặt lại xem
+                <RefreshCw size={14} />
+                <span>Đặt lại vị trí</span>
               </button>
             )}
           </div>

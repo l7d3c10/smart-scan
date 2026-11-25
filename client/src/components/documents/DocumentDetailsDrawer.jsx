@@ -120,7 +120,7 @@ export function DocumentDetailsDrawer({ doc, isOpen, onClose, onCopy, onDelete }
           }}>
             {doc.processed_path || doc.original_path ? (
               <img
-                src={`/api/uploads/${doc.processed_path || doc.original_path}`}
+                src={`/api/documents/${doc.id}/image/${doc.processed_path ? 'processed' : 'original'}`}
                 alt={doc.title}
                 style={{
                   maxWidth: '100%',

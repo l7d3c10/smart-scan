@@ -26,8 +26,9 @@ export default function FolderManagementPage() {
     setLoading(true);
     try {
       const res = await documentService.folders();
-      if (res?.data && res.data.length > 0) {
-        const merged = res.data.map((f, idx) => ({
+      const folderList = Array.isArray(res) ? res : (res?.data || []);
+      if (folderList.length > 0) {
+        const merged = folderList.map((f, idx) => ({
           name: f.name,
           desc: `Chứa ${f.count} tài liệu đã phân loại`,
           count: Number(f.count),

@@ -22,6 +22,7 @@ export default function ImageSavePage() {
     event.preventDefault(); setBusy(true); setError('');
     try {
       const result = await imageService.save(uploadId, documentId ? { documentId } : form);
+      sessionStorage.removeItem('smartscan_active_upload');
       navigate(`/tai-lieu/${result.document.id}`);
     } catch (issue) { setError(issue.message || 'Lưu tài liệu thất bại.'); setBusy(false); }
   }

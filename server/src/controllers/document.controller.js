@@ -430,3 +430,31 @@ export async function importDocuments(req, res, next) {
     next(err);
   }
 }
+
+
+export async function exportDocuments(req, res, next) {
+  try {
+    const pool = req.app.locals.pool;
+    const { search = '', type = '' } = req.query;
+
+    // Lấy toàn bộ tài liệu không phân trang để xuất
+    const result = await docRepo.list(pool, {
+      search,
+      type,
+      page: 1,
+      limit: 10000,
+      sort: 'created_at_desc',
+      userId: req.user?.id,
+      isAdmin: req.user?.role === 'admin',
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: result.items || [],
+      total: result.total || 0,
+      exportedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}

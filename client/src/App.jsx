@@ -13,17 +13,18 @@ import RecentPage           from './pages/RecentPage.jsx';
 import RecycleBinPage       from './pages/RecycleBinPage.jsx';
 
 // ── Người 2: Xử lý ảnh (OpenCV) ───────────────────────────────────────────────
-import UploadPage           from './pages/UploadPage.jsx';
+import ImageUploadPage      from './pages/ImageUploadPage.jsx';
 import ImageProcessPage     from './pages/ImageProcessPage.jsx';
-import SaveDocumentPage     from './pages/SaveDocumentPage.jsx';
+import ImageSavePage        from './pages/ImageSavePage.jsx';
 
 // ── Người 3: Bảo mật / Auth ───────────────────────────────────────────────────
 import LoginPage            from './pages/LoginPage.jsx';
 import RegisterPage         from './pages/RegisterPage.jsx';
 import DashboardPage        from './pages/DashboardPage.jsx';
 import ProfilePage          from './pages/ProfilePage.jsx';
-import UserManagementPage   from './pages/UserManagementPage.jsx';
-import AuditLogPage         from './pages/AuditLogPage.jsx';
+import AdminUsersPage       from './pages/AdminUsersPage.jsx';
+import AdminAuditPage       from './pages/AdminAuditPage.jsx';
+import { RequireAdmin }     from './components/auth/RequireAdmin.jsx';
 import NotFoundPage         from './pages/NotFoundPage.jsx';
 import { RequireAuth }      from './components/auth/RequireAuth.jsx';
 import { AuthProvider }     from './context/AuthContext.jsx';
@@ -72,14 +73,21 @@ function RoutedApp() {
           <Route path="/thung-rac"                 element={<RecycleBinPage />} />
 
           {/* ── Người 2: Xử lý ảnh (OpenCV) ── */}
-          <Route path="/tai-len"                   element={<UploadPage />} />
+          <Route path="/xu-ly-anh"                 element={<ImageUploadPage />} />
+          <Route path="/xu-ly-anh/:uploadId"       element={<ImageProcessPage />} />
+          <Route path="/xu-ly-anh/:uploadId/luu"   element={<ImageSavePage />} />
+          {/* Tương thích ngược đường dẫn cũ */}
+          <Route path="/tai-len"                   element={<ImageUploadPage />} />
+          <Route path="/tai-len/:uploadId"         element={<ImageProcessPage />} />
           <Route path="/tai-len/:uploadId/xu-ly"   element={<ImageProcessPage />} />
-          <Route path="/tai-len/:uploadId/luu"     element={<SaveDocumentPage />} />
+          <Route path="/tai-len/:uploadId/luu"     element={<ImageSavePage />} />
 
           {/* ── Người 3: Profile & Administration ── */}
           <Route path="/ho-so"                     element={<ProfilePage />} />
-          <Route path="/quan-tri/nguoi-dung"       element={<UserManagementPage />} />
-          <Route path="/quan-tri/nhat-ky"          element={<AuditLogPage />} />
+          <Route element={<RequireAdmin />}>
+            <Route path="/quan-tri/nguoi-dung"     element={<AdminUsersPage />} />
+            <Route path="/quan-tri/nhat-ky"        element={<AdminAuditPage />} />
+          </Route>
         </Route>
 
         {/* 404 fallback */}

@@ -20,7 +20,8 @@ export default function RecycleBinPage() {
     setLoading(true);
     try {
       const res = await documentService.list({ isDeleted: true, limit: 50 });
-      setDocuments(res?.data?.items || []);
+      const items = res?.items || res?.data?.items || [];
+      setDocuments(items);
     } catch {
       setDocuments([]);
     } finally {
