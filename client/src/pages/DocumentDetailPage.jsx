@@ -166,14 +166,14 @@ export default function DocumentDetailPage() {
             )}
             {imageTab === 'original' && hasOriginal && (
               <img
-                src={`/api/uploads/${doc.original_path}`}
+                src={`/api/documents/${doc.id}/image/original`}
                 alt="Ảnh gốc tài liệu"
                 style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
               />
             )}
             {imageTab === 'processed' && hasProcessed && (
               <img
-                src={`/api/uploads/${doc.processed_path}`}
+                src={`/api/documents/${doc.id}/image/processed`}
                 alt="Ảnh đã xử lý"
                 style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
               />

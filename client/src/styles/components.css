@@ -343,11 +343,6 @@
 
 .toast-close:hover { color: var(--text-primary); }
 
-.toast-success { border-left: 3px solid var(--color-success); }
-.toast-error   { border-left: 3px solid var(--color-danger); }
-.toast-warning { border-left: 3px solid var(--color-warning); }
-.toast-info    { border-left: 3px solid var(--color-info); }
-
 /* ================================
    EMPTY STATE
 ================================ */

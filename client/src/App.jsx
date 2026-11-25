@@ -15,6 +15,9 @@ import { RequireAdmin } from './components/auth/RequireAdmin.jsx';
 import { ApiErrorRedirector } from './components/auth/ApiErrorRedirector.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { StatusErrorPage } from './pages/StatusErrorPage.jsx';
+import ImageUploadPage from './pages/ImageUploadPage.jsx';
+import ImageProcessPage from './pages/ImageProcessPage.jsx';
+import ImageSavePage from './pages/ImageSavePage.jsx';
 import { useLocation } from 'react-router-dom';
 import { RequireAuth } from './components/auth/RequireAuth.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
@@ -44,6 +47,9 @@ function RoutedApp() {
         <Route path="/tai-lieu/them"     element={<DocumentCreatePage />} />
         <Route path="/tai-lieu/:id"      element={<DocumentDetailPage />} />
         <Route path="/tai-lieu/:id/sua"  element={<DocumentEditPage />} />
+        <Route path="/xu-ly-anh" element={<ImageUploadPage />} />
+        <Route path="/xu-ly-anh/:uploadId" element={<ImageProcessPage />} />
+        <Route path="/xu-ly-anh/:uploadId/luu" element={<ImageSavePage />} />
         <Route path="/ho-so" element={<ProfilePage />} />
         <Route element={<RequireAdmin />}>
           <Route path="/quan-tri/nguoi-dung" element={<AdminUsersPage />} />

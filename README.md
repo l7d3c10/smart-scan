@@ -14,13 +14,28 @@ Kế hoạch gốc không bắt buộc tên database. Script dưới đây dùng
 
 ### 1. Tạo database
 
-Trong pgAdmin, mở Query Tool của database `postgres` và chạy lệnh này một lần:
+Trong pgAdmin, mở Query Tool của database `postgres` và chạy lệnh này một lần. `template0` giữ database mới tách khỏi encoding/collation của `template1`; `UTF8` cho phép lưu tiếng Việt và Unicode:
 
 ```sql
-CREATE DATABASE smartscan;
+CREATE DATABASE smartscan
+    WITH TEMPLATE template0
+    ENCODING 'UTF8';
 ```
 
 Sau đó chọn database `smartscan`, mở Query Tool mới và chạy toàn bộ script ở bước 2. Nếu dùng `psql`, kết nối vào `postgres`, chạy lệnh trên, rồi chuyển database bằng `\connect smartscan` trước khi chạy schema.
+
+> **Kiểm tra encoding trước khi tạo bảng:** trong Query Tool của `smartscan`, chạy:
+>
+> ```sql
+SELECT current_database() AS database,
+        pg_encoding_to_char(encoding) AS database_encoding
+FROM pg_database
+WHERE datname = current_database();
+
+SHOW client_encoding;
+> ```
+>
+> Cả hai kết quả cần là `UTF8`. PostgreSQL không đổi encoding cho database đã tạo bằng `ALTER DATABASE`. Nếu `smartscan` hiện tại là `WIN1252`, hãy sao lưu trước rồi tạo database UTF‑8 mới; không xóa database cũ trước khi xác nhận đã phục hồi dữ liệu cần giữ.
 
 ### 2. Tạo sequence, bảng và chỉ mục
 
