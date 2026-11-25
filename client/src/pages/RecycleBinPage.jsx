@@ -43,11 +43,16 @@ export default function RecycleBinPage() {
     }
   };
 
-  const handleEmptyTrash = async () => {
+  const handleConfirmPermanentDelete = async () => {
     setDeleting(true);
     try {
-      await documentService.emptyTrash();
-      toastSuccess('Đã dọn sạch toàn bộ thùng rác.');
+      if (deleteTarget === 'all') {
+        await documentService.emptyTrash();
+        toastSuccess('Đã dọn sạch toàn bộ thùng rác.');
+      } else if (deleteTarget?.id) {
+        await documentService.delete(deleteTarget.id);
+        toastSuccess(`Đã xóa vĩnh viễn tài liệu "${deleteTarget.title}".`);
+      }
       setDeleteTarget(null);
       fetchTrash();
     } catch {
@@ -126,6 +131,14 @@ export default function RecycleBinPage() {
                       >
                         Khôi phục
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        icon={Trash2}
+                        onClick={() => setDeleteTarget(doc)}
+                      >
+                        Xóa hẳn
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -139,11 +152,15 @@ export default function RecycleBinPage() {
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={handleEmptyTrash}
+        onConfirm={handleConfirmPermanentDelete}
         loading={deleting}
-        title="Dọn sạch thùng rác vĩnh viễn"
-        message="Hành động này sẽ xóa vĩnh viễn toàn bộ tài liệu trong thùng rác và KHÔNG THỂ khôi phục. Bạn có chắc chắn muốn tiếp tục?"
-        confirmLabel="Xóa vĩnh viễn tất cả"
+        title={deleteTarget === 'all' ? 'Dọn sạch thùng rác vĩnh viễn' : 'Xóa vĩnh viễn tài liệu'}
+        message={
+          deleteTarget === 'all'
+            ? 'Hành động này sẽ xóa vĩnh viễn toàn bộ tài liệu trong thùng rác và KHÔNG THỂ khôi phục. Bạn có chắc chắn muốn tiếp tục?'
+            : `Bạn có chắc muốn xóa vĩnh viễn "${deleteTarget?.title}"? Hành động này KHÔNG THỂ khôi phục.`
+        }
+        confirmLabel={deleteTarget === 'all' ? 'Xóa vĩnh viễn tất cả' : 'Xóa vĩnh viễn'}
       />
 
       <ToastContainer toasts={toasts} onClose={removeToast} />

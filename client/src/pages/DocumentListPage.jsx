@@ -271,23 +271,23 @@ export default function DocumentListPage({ folderName = '', onBackToFolders = nu
     }
   };
 
-  // Delete handlers
+  // Delete handlers (move to Recycle Bin)
   const handleConfirmDelete = async () => {
     setDeleting(true);
     try {
       if (deleteTarget === 'bulk') {
-        const res = await documentService.bulkDelete(selectedIds);
-        toastSuccess(`Đã xóa ${res.deletedCount || selectedIds.length} tài liệu.`);
+        await Promise.all(selectedIds.map((docId) => documentService.moveToTrash(docId)));
+        toastSuccess(`Đã chuyển ${selectedIds.length} tài liệu vào Thùng rác.`);
         setSelectedIds([]);
       } else if (deleteTarget) {
-        await documentService.delete(deleteTarget.id);
-        toastSuccess(`Đã xóa tài liệu "${deleteTarget.title}".`);
+        await documentService.moveToTrash(deleteTarget.id);
+        toastSuccess(`Đã chuyển tài liệu "${deleteTarget.title}" vào Thùng rác.`);
         setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
       }
       setDeleteTarget(null);
       refetch();
     } catch {
-      toastError('Xóa tài liệu thất bại.');
+      toastError('Chuyển tài liệu vào Thùng rác thất bại.');
     } finally {
       setDeleting(false);
     }
@@ -1347,13 +1347,13 @@ export default function DocumentListPage({ folderName = '', onBackToFolders = nu
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
         loading={deleting}
-        title={deleteTarget === 'bulk' ? `Xóa ${selectedIds.length} tài liệu đã chọn` : 'Xóa tài liệu'}
+        title={deleteTarget === 'bulk' ? `Chuyển ${selectedIds.length} tài liệu vào Thùng rác` : 'Chuyển vào Thùng rác'}
         message={
           deleteTarget === 'bulk'
-            ? `Bạn có chắc chắn muốn xóa ${selectedIds.length} tài liệu đã chọn không? Thao tác này sẽ không thể khôi phục.`
-            : `Bạn có chắc muốn xóa tài liệu "${deleteTarget?.title}"? Hành động này không thể hoàn tác.`
+            ? `Bạn có chắc muốn chuyển ${selectedIds.length} tài liệu đã chọn vào Thùng rác? Bạn vẫn có thể khôi phục lại từ mục Thùng rác.`
+            : `Bạn có chắc muốn chuyển tài liệu "${deleteTarget?.title}" vào Thùng rác? Bạn vẫn có thể khôi phục lại khi cần.`
         }
-        confirmLabel={deleteTarget === 'bulk' ? `Xóa ${selectedIds.length} bản ghi` : 'Xóa tài liệu'}
+        confirmLabel={deleteTarget === 'bulk' ? `Chuyển ${selectedIds.length} bản ghi` : 'Chuyển vào Thùng rác'}
       />
 
       {/* Keyboard Shortcuts Help Modal */}

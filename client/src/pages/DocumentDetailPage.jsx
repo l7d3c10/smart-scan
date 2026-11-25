@@ -90,11 +90,11 @@ export default function DocumentDetailPage() {
   const handleDelete = useCallback(async () => {
     setDeleting(true);
     try {
-      await documentService.delete(id);
-      toastSuccess('Đã xóa tài liệu.');
+      await documentService.moveToTrash(id);
+      toastSuccess('Đã chuyển tài liệu vào Thùng rác.');
       setTimeout(() => navigate('/tai-lieu'), 1000);
     } catch {
-      toastError('Xóa tài liệu thất bại.');
+      toastError('Chuyển tài liệu vào Thùng rác thất bại.');
       setDeleting(false);
     }
   }, [id, navigate, toastSuccess, toastError]);
@@ -508,9 +508,9 @@ export default function DocumentDetailPage() {
         onClose={() => setDeleteOpen(false)}
         onConfirm={handleDelete}
         loading={deleting}
-        title="Xóa tài liệu"
-        message={`Bạn có chắc muốn xóa tài liệu "${doc.title}"? Hành động này không thể hoàn tác.`}
-        confirmLabel="Xóa tài liệu"
+        title="Chuyển vào Thùng rác"
+        message={`Bạn có chắc muốn chuyển tài liệu "${doc.title}" vào Thùng rác? Bạn có thể khôi phục lại từ mục Thùng rác.`}
+        confirmLabel="Chuyển vào Thùng rác"
       />
 
       <ToastContainer toasts={toasts} onClose={removeToast} />
