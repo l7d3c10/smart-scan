@@ -1,0 +1,83 @@
+. Bảng cân bằng
+Thành viên	Môn	Điểm ban đầu	Chuyển	Điểm cuối	Giờ công chuẩn	Màn hình
+Người 1	Ngôn ngữ kịch bản	118	−14	104	99	5
+Người 2	Xử lý ảnh	104	0	104	62	3
+Người 3	Web an toàn	90	+14	104	80	7
+Tổng		312	0	312	241	15
+11.4. Người 1 – Ngôn ngữ kịch bản
+Mã	Công việc	Giờ	Hệ số	Điểm
+K1	Khởi tạo dự án PERN: monorepo client/server, Vite, Express, kết nối PostgreSQL (pg Pool), .env, README, lệnh chạy	6	×1.0	6
+K2	Bảng documents, migration, dữ liệu mẫu 30 tài liệu (seed)	4	×1.0	4
+K3	Bộ giao diện dùng chung và style.css: Layout, Sidebar, Topbar, Modal, Toast, Skeleton, EmptyState, Pagination, Alert	12	×1.0	12
+K4	React Router, API client dùng chung (gắn CSRF, xử lý lỗi chuẩn, tự chuyển về đăng nhập khi 401)	6	×1.0	6
+K5	API + màn S04 Danh sách: tìm kiếm, lọc loại, sắp xếp, phân trang 10 dòng	12	×1.0	12
+K6	Chọn nhiều, thanh nổi, xóa 1 và xóa nhiều, hộp thoại xác nhận	6	×1.0	6
+K7	Sao chép 1 và nhiều bản ghi (transaction, sao chép cả file ảnh)	6	×1.0	6
+K8	Màn S05 Thêm và S06 Sửa (form dùng chung, mã TL-0001, đếm ký tự, cảnh báo rời trang)	12	×1.0	12
+K9	Màn S07 Chi tiết (trình xem ảnh phóng to/xoay/toàn màn hình, lịch sử 5 thao tác)	11	×1.0	11
+K10	Màn S11 Nhập Excel/JSON (kéo thả, xem trước 5 dòng, báo dòng lỗi, transaction)	10	×1.5	15
+K11	Ẩn/hiện cột (ghi nhớ lựa chọn), phím tắt N/E/Delete//, bảng phím tắt “?”	8	×1.0	8
+K12	Kiểm thử chức năng CRUD, viết phần báo cáo môn Ngôn ngữ kịch bản	6	×1.0	6
+	TỔNG	99		104
+
+11.5. Người 2 – Xử lý ảnh
+Mã	Công việc	Giờ	Hệ số	Điểm
+X1	Hàm 1 – phát hiện vùng tài liệu: xám, Gaussian, Canny, contour lớn nhất có 4 đỉnh, sắp xếp thứ tự 4 đỉnh	8	×2.0	16
+X2	Hàm 2 – nắn thẳng: getPerspectiveTransform, tính kích thước ảnh đích, warpPerspective	6	×2.0	12
+X3	Hàm 3 – làm rõ chữ: 3 chế độ màu / xám / đen trắng (adaptive threshold)	6	×2.0	12
+X4	Dự phòng khi không tìm được viền (trả ảnh gốc + cảnh báo), xử lý ảnh hỏng/quá lớn, lưu 4 ảnh trung gian	6	×2.0	12
+X5	Tích hợp Node: API xử lý ảnh gọi Python bằng child_process (spawn, timeout, kiểm tra tham số, đọc kết quả JSON)	8	×2.0	16
+X6	Màn S08 Tải ảnh (kéo thả, xem trước, kiểm tra client, thanh tiến trình 3 bước)	8	×1.0	8
+X7	Màn S09 Xử lý ảnh (3 thẻ chế độ, thanh trượt nâng cao, overlay, so sánh gốc/kết quả, 4 ảnh trung gian)	12	×1.5	18
+X8	Màn S10 Lưu tài liệu (tạo mới hoặc cập nhật ảnh cho tài liệu có sẵn, xử lý lại)	4	×1.0	4
+X9	Bộ ảnh thử 4 ca, bảng kết quả, tài liệu giải thích tham số, báo cáo môn Xử lý ảnh	4	×1.5	6
+	TỔNG	62		104
+
+11.6. Người 3 – Phát triển web an toàn
+Mã	Công việc	Giờ	Hệ số	Điểm
+B1	Bảng users, audit_logs, uploads, bảng session; migration; tài khoản Admin/User mẫu	4	×1.5	6
+B2	API đăng ký/đăng nhập/đăng xuất/me, băm bcrypt, session lưu PostgreSQL (httpOnly, sameSite), CSRF token	8	×1.5	12
+B3	Giới hạn đăng nhập sai và khóa tạm (đếm ngược), khóa bởi Admin	4	×1.5	6
+B4	Middleware đăng nhập, phân quyền User/Admin, kiểm tra quyền sở hữu tài liệu (chống IDOR)	6	×1.5	9
+B5	Upload an toàn: 5MB, đuôi file, magic bytes, UUID, lưu ngoài thư mục chạy mã, chống path traversal, route trả ảnh có kiểm tra quyền	8	×1.5	12
+B6	Kiểm tra dữ liệu đầu vào phía server, helmet/CSP, CORS, rà soát truy vấn tham số và chống XSS	4	×1.5	6
+B7	Dịch vụ nhật ký (audit log) + màn S14 Nhật ký hoạt động (lọc, phân trang 20, xuất JSON)	8	×1.5	12
+B8	Màn S01 Đăng nhập và S02 Đăng ký (thanh đo độ mạnh, các trạng thái khóa/trùng tên)	6	×1.0	6
+B9	Màn S12 Hồ sơ và đổi mật khẩu	4	×1.0	4
+B10	Màn S13 Quản lý người dùng (đổi vai trò, khóa/mở khóa, đặt lại mật khẩu, xác nhận)	6	×1.5	9
+B11	Màn S15 Trang lỗi 403/404/500 + trình xử lý lỗi tập trung (mã tham chiếu, không lộ stack trace)	4	×1.0	4
+B12	Tài liệu TEST-BAOMAT.md, tự tấn công thử 6 kịch bản, báo cáo môn Web an toàn	4	×1.0	4
+B13	Màn S03 Tổng quan + 3 API thống kê + Chart.js (nhận từ Người 1)	10	×1.0	10
+B14	Xuất dữ liệu Excel/JSON theo bộ lọc, có kiểm tra quyền (nhận từ Người 1)	4	×1.0	4
+	TỔNG	80		104
+
+. Kiểm thử và tiêu chí hoàn thành
+13.1. Kiểm thử
+•	Mọi route đều kiểm tra đăng nhập và quyền (rà soát cả danh sách API ở mục 7).
+•	Luồng upload → xử lý ảnh → lưu tài liệu → xem chi tiết chạy liền mạch.
+•	Xử lý lỗi: ảnh hỏng, ảnh quá lớn, không tìm được viền, mất kết nối, hết phiên.
+•	Dữ liệu mẫu: 30 tài liệu, 3 tài khoản (1 Admin, 2 User) để thử phân quyền và IDOR.
+•	Thử từng trong 11 yêu cầu quản lý bản ghi, 4 ca ảnh (nghiêng, tối, có bóng, rõ), 6 kịch bản bảo mật.
+13.2. Tiêu chí hoàn thành
+•	Cài đặt và chạy được theo README trên máy mới (PostgreSQL, Node, Python/OpenCV).
+•	Đủ 15 màn hình, mỗi màn có đủ 4 trạng thái (bình thường, đang tải, rỗng, lỗi).
+•	Đủ 11 yêu cầu quản lý bản ghi và thống kê.
+•	Xử lý ảnh chạy với 3 chế độ, có 4 ảnh trung gian, có bảng kết quả 4 ca thử.
+•	Đăng nhập, phân quyền, nhật ký hoạt động đúng ở backend; cả 6 kịch bản tấn công đều bị chặn.
+•	Mọi gói công việc đạt định nghĩa “xong” ở mục 3.4 và đã được review chéo.
+•	Mỗi người giải thích được phần của mình và luồng chung của hệ thống.
+13.3. Sản phẩm bàn giao
+•	Mã nguồn có README (cài đặt, biến môi trường, lệnh chạy, tài khoản mẫu), file migration và seed.
+•	TEST-BAOMAT.md, bảng kết quả kiểm thử ảnh, bảng theo dõi công việc.
+•	Slide và báo cáo ba phần theo ba môn; bản PLAN này được cập nhật khi có thay đổi.
+14. Rủi ro và hướng xử lý
+Rủi ro	Hướng xử lý
+Ảnh quá tối hoặc nền trùng màu giấy nên không tìm được viền	Trả ảnh gốc kèm cảnh báo; cho chỉnh ngưỡng Canny; vẫn cho lưu tài liệu
+Gọi Python từ Node lỗi đường dẫn, thiếu OpenCV hoặc treo	Đặt PYTHON_BIN trong .env, timeout 20 giây, kiểm tra mã thoát, ghi log, thông báo thân thiện; kiểm tra ngay từ tuần 1
+Người 2 chờ API upload của Người 3	Dùng dữ liệu giả cho giao diện; Người 3 ưu tiên B5 trong tuần 3
+Các phần ghép lại bị lệch quy ước	Tuân thủ mục 3; review chéo; họp 2 lần mỗi tuần
+Quên kiểm tra quyền ở một route	Dùng middleware chung; rà soát toàn bộ route ở tuần 6; kịch bản IDOR trong TEST-BAOMAT
+Khối lượng thực tế lệch so với ước tính	Theo dõi bằng bảng, chuyển gói dự phòng theo mục 11.8
+Không giải thích được code khi bảo vệ	Giữ code đơn giản, comment tiếng Việt, mỗi người trình bày thử cho hai người còn lại
+
+

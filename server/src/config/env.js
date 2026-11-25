@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const projectRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -15,7 +16,10 @@ export function loadConfig(env = process.env) {
     throw new Error('PORT phải là số nguyên từ 1 đến 65535.');
   }
 
-  const pythonExecutable = env.PYTHON_EXECUTABLE || 'python';
+  const virtualenvPython = path.join(projectRoot, 'server', 'python', '.venv',
+    process.platform === 'win32' ? 'Scripts' : 'bin',
+    process.platform === 'win32' ? 'python.exe' : 'python');
+  const pythonExecutable = env.PYTHON_EXECUTABLE || (existsSync(virtualenvPython) ? virtualenvPython : 'python');
   const resolvedPythonExecutable = path.isAbsolute(pythonExecutable)
     || !/[\\/]/.test(pythonExecutable)
     ? pythonExecutable
