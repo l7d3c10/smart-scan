@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { issueCsrfToken } from '../middleware/csrf.js';
+import { writeAudit } from '../services/audit.service.js';
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/;
 const BCRYPT_ROUNDS = 12;
@@ -19,14 +20,6 @@ function validPassword(password) {
     && Buffer.byteLength(password, 'utf8') <= 72
     && /[A-Za-z]/.test(password)
     && /\d/.test(password);
-}
-
-function writeAudit(pool, { userId = null, username, action, ip, detail = null }) {
-  return pool.query(
-    `INSERT INTO audit_logs (user_id, actor_username, action, ip, detail)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [userId, username, action, ip || null, detail]
-  );
 }
 
 function regenerateSession(req) {
@@ -244,6 +237,71 @@ export async function getCurrentUser(req, res, next) {
       });
     }
     return res.status(200).json({ ok: true, data: { user: publicUser(row) } });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function changePassword(req, res, next) {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const currentPassword = body.currentPassword;
+  const newPassword = body.newPassword;
+  const confirmPassword = body.confirmPassword;
+  if (typeof currentPassword !== 'string' || !currentPassword) {
+    return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Vui lòng nhập mật khẩu hiện tại.', fields: { currentPassword: 'Bắt buộc.' } } });
+  }
+  if (!validPassword(newPassword)) {
+    return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Mật khẩu mới cần ít nhất 8 ký tự, tối đa 72 byte, gồm chữ và số.', fields: { newPassword: 'Mật khẩu không đáp ứng yêu cầu.' } } });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Mật khẩu nhập lại chưa khớp.', fields: { confirmPassword: 'Mật khẩu không khớp.' } } });
+  }
+
+  const pool = req.app.locals.pool;
+  let passwordHash;
+  try {
+    const found = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    const currentHash = found.rows[0]?.password_hash;
+    if (!currentHash || !(await bcrypt.compare(currentPassword, currentHash))) {
+      return res.status(401).json({ ok: false, error: { code: 'INVALID_CREDENTIALS', message: 'Mật khẩu hiện tại không đúng.' } });
+    }
+    if (await bcrypt.compare(newPassword, currentHash)) {
+      return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Mật khẩu mới phải khác mật khẩu hiện tại.' } });
+    }
+    passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  } catch (error) {
+    return next(error);
+  }
+
+  const currentSessionId = req.sessionID;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE users SET password_hash = $2, failed_attempts = 0, locked_until = NULL WHERE id = $1', [req.user.id, passwordHash]);
+    await client.query("DELETE FROM session WHERE sess->>'userId' = $1 AND sid <> $2", [String(req.user.id), currentSessionId]);
+    await writeAudit(client, {
+      userId: req.user.id, username: req.user.username,
+      action: 'PASSWORD_CHANGE', detail: 'Đổi mật khẩu thành công.', ip: req.ip,
+    });
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    return next(error);
+  } finally {
+    client.release();
+  }
+
+  try {
+    await regenerateSession(req);
+    req.session.userId = req.user.id;
+    req.session.username = req.user.username;
+    req.session.role = req.user.role;
+    req.session.csrfToken = randomBytes(32).toString('hex');
+    await saveSession(req);
+    return res.status(200).json({
+      ok: true,
+      data: { user: publicUser(req.user), csrfToken: req.session.csrfToken },
+    });
   } catch (error) {
     return next(error);
   }

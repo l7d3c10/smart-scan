@@ -1,8 +1,8 @@
 # Tiến trình dự án SmartScan
 
-## Cập nhật ngày 22/11/2026
+## Cập nhật ngày 23/11/2026
 
-Đã hoàn thành các gói tuần 1 (B1, B2), tuần 2 (B4, B8), tuần 3 (B3, B5) và tuần 4 (B6, B13) của Người 3.
+Đã hoàn thành các gói tuần 1 (B1, B2), tuần 2 (B4, B8), tuần 3 (B3, B5), tuần 4 (B6, B13), tuần 5 (B7, B10) và tuần 6 (B9, B11, B12, B14) của Người 3.
 
 ## Công việc đã làm
 
@@ -41,6 +41,20 @@
 - Thêm dashboard vào `/` với bốn thẻ thống kê (Admin có thêm thẻ người dùng), biểu đồ 12 tháng, biểu đồ theo loại, năm tài liệu gần đây, trạng thái tải/lỗi/rỗng và liên kết tạo/xem tài liệu.
 - Bật mục “Tổng quan” trên Sidebar.
 - Thêm `helmet`, `chart.js` và `react-chartjs-2`.
+- Thêm API `POST /api/auth/change-password`: xác minh mật khẩu hiện tại, kiểm tra mật khẩu mới, ghi audit, thu hồi các phiên khác và tạo lại phiên hiện tại.
+- Thêm trang `/ho-so` hiển thị username/vai trò và form đổi mật khẩu có xác nhận.
+- Thêm trang lỗi 403, 404, 500; API lỗi 403/404/500 chuyển tới trang tương ứng, lỗi React được ErrorBoundary xử lý. Trang 500 chỉ hiển thị mã tham chiếu, không lộ stack.
+- Tạo `TEST-BAOMAT.md` với sáu kịch bản SQL injection, XSS, IDOR, upload giả, truy cập ảnh riêng tư và tham số xử lý ảnh bất thường. Kịch bản xử lý ảnh đang chờ endpoint X5.
+- Thêm API `GET /api/documents/export` áp dụng cùng bộ lọc và phạm vi chủ sở hữu hiện tại, giới hạn 50.000 dòng/lần và ghi audit `DOC_EXPORT`.
+- Thêm nút xuất JSON và Excel theo bộ lọc hiện tại. File Excel `.xlsx` được tạo bằng OpenXML/ZIP nhẹ ở client; bỏ đường dẫn lưu trữ nội bộ khỏi dữ liệu xuất.
+- Dùng `fflate` thay ExcelJS/SheetJS để tránh phụ thuộc có cảnh báo bảo mật; cài dependency ghi nhận 0 lỗ hổng trong lần cài.
+- Tạo dịch vụ audit dùng chung; ghi thêm `DOC_CREATE`, `DOC_UPDATE`, `DOC_DELETE` và các thao tác quản trị vai trò, khóa/mở khóa, đặt lại mật khẩu.
+- Thêm API Admin `GET /api/admin/audit-logs` với lọc theo từ khóa, hành động, ngày; phân trang 20 dòng và xuất JSON tối đa 10.000 dòng/lần.
+- Thêm màn hình `/quan-tri/nhat-ky`, chỉ hiện với Admin, có bộ lọc, phân trang, xuất JSON và hiển thị nội dung log dưới dạng text an toàn.
+- Thêm API Admin `GET /api/admin/users`, `POST /api/admin/users/:id/role`, `POST /api/admin/users/:id/reset-password`; giữ API khóa/mở khóa đã có.
+- Thao tác đổi vai trò, khóa/mở khóa và đặt lại mật khẩu ghi audit trong cùng transaction. Chặn tự hạ quyền, tự khóa, khóa/hạ quyền Admin hoạt động cuối cùng; đặt lại mật khẩu sẽ thu hồi session của tài khoản đích.
+- Thêm màn hình `/quan-tri/nguoi-dung` để tìm/lọc người dùng, đổi vai trò, khóa/mở khóa và đặt lại mật khẩu bằng modal có xác nhận.
+- Thêm hai liên kết quản trị trên Sidebar, chỉ hiển thị cho Admin; cả frontend lẫn backend đều chặn User.
 
 ## Cách chạy phần cơ sở dữ liệu và seed
 
@@ -50,23 +64,23 @@
 4. Chạy `npm run seed:auth --workspace @smartscan/server`.
 5. Chạy app bằng `npm run dev`.
 
-## Chưa thuộc phạm vi tuần 1–4
+## Chưa thuộc phạm vi tuần 1–6
 
-- API đổi mật khẩu và màn hình quản trị người dùng được thực hiện ở các gói tiếp theo.
 - Giao diện tải ảnh, xử lý ảnh và nối Python thuộc các gói X6–X8 của Người 2.
 - Kiểm tra nội dung ảnh sâu bằng bộ giải mã ảnh và dọn upload quá hạn chưa được triển khai.
-- Xuất Excel/JSON thuộc B14 tuần 6.
+- Kịch bản bảo mật số 6 chỉ chạy được sau khi Người 2 tích hợp API xử lý ảnh X5.
 - Schema gốc `001_initial_schema.sql` đã có sẵn phần lớn bảng auth; migration 002 là bước bảo đảm/nâng cấp tương thích cho database đã khởi tạo.
 
 ## Bàn giao
 
 Người 1 và Người 2 có thể dùng `/api/auth/me` để lấy người dùng hiện tại. Các request POST/PUT/DELETE qua client API tự lấy CSRF token. API upload sẵn sàng cho luồng X6–X8: gửi multipart field `file` tới `/api/uploads`, nhận `id` và `originalUrl`, rồi hiển thị ảnh qua URL đó với cookie phiên.
 
-Phần tuần 3–4 mới được cập nhật ở mã nguồn; chưa chạy migration/seed hoặc kiểm thử tích hợp trên database của máy.
+Client production build thành công; các file JavaScript backend đã qua kiểm tra cú pháp. Chưa chạy migration/seed hoặc kiểm thử tích hợp trên database của máy. Trong `TEST-BAOMAT.md`, sáu tình huống chưa được chạy; tình huống xử lý ảnh đang chờ X5.
 
 ## Cách thử thủ công các API mới
 
 - Sau khi đăng nhập, tải file bằng `POST /api/uploads` với `multipart/form-data`, field tên `file`.
 - Xem ảnh gốc bằng `GET /api/uploads/{id}/original` khi gửi cookie session của đúng chủ upload hoặc Admin.
 - Admin khóa/mở tài khoản bằng `POST /api/admin/users/{id}/lock` hoặc `/unlock`, gửi cookie session và `X-CSRF-Token`.
+- Admin truy cập giao diện quản lý tại `/quan-tri/nguoi-dung` và nhật ký tại `/quan-tri/nhat-ky`.
 - Đăng nhập sai 5 lần vào tài khoản mẫu để nhận khóa tạm 15 phút; thử tiếp cùng IP sẽ chịu giới hạn rate limit.

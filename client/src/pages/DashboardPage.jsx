@@ -31,7 +31,9 @@ export default function DashboardPage() {
     try {
       setData(await dashboardService.load());
     } catch (requestError) {
-      setError(requestError.message || 'Không thể tải dữ liệu tổng quan.');
+      const resource = requestError.resource ? ` [${requestError.resource}]` : '';
+      const reference = requestError.ref ? ` Mã lỗi: ${requestError.ref}.` : '';
+      setError(`${requestError.message || 'Không thể tải dữ liệu tổng quan.'}${resource}${reference}`);
     } finally {
       setLoading(false);
     }

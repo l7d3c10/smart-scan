@@ -7,7 +7,17 @@ export function errorHandler(error, _request, response, _next) {
 
   if (status === 500) {
     const ref = randomUUID();
-    console.error({ ref, message: error.message });
+    console.error({
+      ref,
+      name: error.name,
+      code: error.code,
+      message: error.message || String(error),
+      detail: error.detail,
+      stack: error.stack,
+      causes: Array.isArray(error.errors)
+        ? error.errors.map((cause) => ({ code: cause.code, message: cause.message, address: cause.address, port: cause.port }))
+        : undefined,
+    });
     return response.status(500).json({
       ok: false,
       error: { code: 'SERVER_ERROR', message: 'Đã xảy ra lỗi hệ thống.', ref },

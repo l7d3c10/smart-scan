@@ -3,6 +3,7 @@ import {
   listDocuments,
   getNextCode,
   getFolders,
+  exportDocuments,
   getDocument,
   getDocumentHistory,
   createDocument,
@@ -19,6 +20,7 @@ import {
   importDocuments,
 } from '../controllers/document.controller.js';
 import { requireAuth, requireDocumentAccess } from '../middleware/auth.js';
+import { getDocumentImage } from '../controllers/image.controller.js';
 
 const router = Router();
 
@@ -28,6 +30,7 @@ router.use('/documents', requireAuth);
 router.get('/documents', listDocuments);
 router.get('/documents/folders', getFolders);
 router.get('/documents/next-code', getNextCode);
+router.get('/documents/export', exportDocuments);
 router.post('/documents', createDocument);
 router.post('/documents/import', importDocuments);
 router.post('/documents/bulk-delete', bulkDeleteDocuments);
@@ -37,6 +40,7 @@ router.delete('/documents/trash/empty', emptyTrash);
 // Parametrized document paths
 router.get('/documents/:id', requireDocumentAccess, getDocument);
 router.get('/documents/:id/history', requireDocumentAccess, getDocumentHistory);
+router.get('/documents/:id/image/:kind', requireDocumentAccess, getDocumentImage);
 router.put('/documents/:id', requireDocumentAccess, updateDocument);
 router.delete('/documents/:id', requireDocumentAccess, deleteDocument);
 router.post('/documents/:id/copy', requireDocumentAccess, copyDocument);

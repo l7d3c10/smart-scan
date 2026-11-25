@@ -51,6 +51,7 @@ export function createApp(pool, config = {}) {
     app.locals.pool = pool;
   }
   if (config.storageRoot) app.locals.storageRoot = config.storageRoot;
+  if (config.pythonExecutable) app.locals.pythonExecutable = config.pythonExecutable;
 
   if (pool && config.sessionSecret) {
     app.use(createSessionMiddleware(pool, config.sessionSecret));

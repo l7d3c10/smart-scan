@@ -154,6 +154,31 @@ export async function findAll(pool, {
   return { rows: dataRes.rows.map(mapRow), total };
 }
 
+export async function findForExport(pool, { search, type, sort = 'created_at_desc', ownerId } = {}) {
+  const params = [];
+  const conditions = [];
+  if (search?.trim()) {
+    params.push(`%${search.trim()}%`);
+    conditions.push(`title ILIKE $${params.length}`);
+  }
+  if (type) {
+    params.push(type);
+    conditions.push(`type = $${params.length}`);
+  }
+  if (ownerId !== undefined) {
+    params.push(ownerId);
+    conditions.push(`owner_id = $${params.length}`);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const orderBy = sort === 'title_asc' ? 'title ASC' : 'created_at DESC';
+  params.push(50001);
+  const result = await pool.query(
+    `SELECT * FROM documents ${where} ORDER BY ${orderBy} LIMIT $${params.length}`,
+    params
+  );
+  return result.rows.map(mapRow);
+}
+
 /**
  * findById – returns single document or null with owner info.
  */
