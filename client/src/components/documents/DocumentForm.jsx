@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Upload, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/Button.jsx';
 import { Input } from '../ui/Input.jsx';
 import { Select } from '../ui/Select.jsx';
 import { documentService } from '../../services/document.service.js';
+import { DocumentImageField } from './DocumentImageField.jsx';
 
 const TYPE_OPTIONS = [
   { value: 'hoa_don',  label: 'Hóa đơn' },
@@ -14,18 +15,33 @@ const TYPE_OPTIONS = [
   { value: 'khac',     label: 'Khác' },
 ];
 
-export function DocumentForm({ mode = 'create', initialData = null, onSubmit, saving }) {
+export function DocumentForm({ mode = 'create', initialData = null, initialDraftId = '', onSubmit, saving }) {
   const navigate = useNavigate();
+  const storageKey = `smartscan_document_form_${mode}_${initialData?.id || 'new'}`;
 
-  const [form, setForm] = useState({
-    code: initialData?.code || 'Đang lấy mã...',
-    title: initialData?.title || '',
-    type: initialData?.type || '',
-    description: initialData?.description || '',
-  });
+  const loadForm = () => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+      if (saved) return saved;
+    } catch {}
+    return {
+      code: initialData?.code || 'Đang lấy mã...',
+      title: initialData?.title || '',
+      type: initialData?.type || '',
+      description: initialData?.description || '',
+    };
+  };
+
+  const [form, setForm] = useState(loadForm);
+  const [imageInput, setImageInput] = useState({ imageDraftId: '', imageSourceId: '' });
+  const [imageBusy, setImageBusy] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (isDirty) sessionStorage.setItem(storageKey, JSON.stringify(form));
+  }, [form, isDirty, storageKey]);
 
   // Fetch next code if in create mode
   useEffect(() => {
@@ -41,12 +57,7 @@ export function DocumentForm({ mode = 'create', initialData = null, onSubmit, sa
           setForm((prev) => ({ ...prev, code: 'TL-Tự sinh' }));
         });
     } else if (initialData) {
-      setForm({
-        code: initialData.code || '',
-        title: initialData.title || '',
-        type: initialData.type || '',
-        description: initialData.description || '',
-      });
+      setForm(loadForm());
     }
   }, [mode, initialData]);
 
@@ -94,8 +105,9 @@ export function DocumentForm({ mode = 'create', initialData = null, onSubmit, sa
       setErrors(errs);
       return;
     }
+    if (imageBusy) return;
     setIsDirty(false);
-    onSubmit(form);
+    onSubmit({ ...form, ...imageInput });
   };
 
   const handleCancel = () => {
@@ -202,6 +214,15 @@ export function DocumentForm({ mode = 'create', initialData = null, onSubmit, sa
               {errors.description && <span className="form-error">{errors.description}</span>}
             </div>
 
+            <DocumentImageField
+              mode={mode}
+              documentId={initialData?.id}
+              initialData={initialData}
+              initialDraftId={initialDraftId}
+              onChange={setImageInput}
+              onBusyChange={setImageBusy}
+            />
+
             {/* Action buttons bar */}
             <div style={{
               display: 'flex',
@@ -221,6 +242,7 @@ export function DocumentForm({ mode = 'create', initialData = null, onSubmit, sa
                   type="submit"
                   icon={Save}
                   loading={saving}
+                  disabled={imageBusy}
                 >
                   {mode === 'create' ? 'Lưu tài liệu' : 'Lưu thay đổi'}
                 </Button>
@@ -251,25 +273,6 @@ export function DocumentForm({ mode = 'create', initialData = null, onSubmit, sa
           </ul>
         </div>
 
-        {mode === 'edit' && initialData && (
-          <div className="table-container" style={{ padding: 'var(--space-5)' }}>
-            <h4 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--weight-semibold)', marginBottom: 'var(--space-2)' }}>
-              Ảnh tài liệu
-            </h4>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--space-3)' }}>
-              {initialData.processed_path ? '✓ Tài liệu đã có ảnh xử lý' : 'Tài liệu chưa có ảnh xử lý'}
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Upload}
-              onClick={() => navigate(`/tai-len?documentId=${initialData.id}`)}
-              style={{ width: '100%' }}
-            >
-              Đổi / Tải ảnh mới
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

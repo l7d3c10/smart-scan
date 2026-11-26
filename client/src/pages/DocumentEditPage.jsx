@@ -9,6 +9,7 @@ import { Skeleton } from '../components/ui/Skeleton.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ToastContainer } from '../components/ui/ToastContainer.jsx';
 import { DocumentForm } from '../components/documents/DocumentForm.jsx';
+import { imageService } from '../services/image.service.js';
 
 export default function DocumentEditPage() {
   const { id } = useParams();
@@ -20,12 +21,20 @@ export default function DocumentEditPage() {
   const handleSubmit = async (form) => {
     setSaving(true);
     try {
-      const updated = await documentService.update(id, {
+      const data = {
         title: form.title.trim(),
         type: form.type,
         description: form.description.trim(),
-      });
+      };
+      const updated = form.imageDraftId
+        ? (await imageService.save(form.imageDraftId, { ...data, documentId: id })).document
+        : await documentService.update(id, {
+          ...data,
+          ...(form.imageSourceId ? { imageSourceId: form.imageSourceId } : {}),
+        });
       toastSuccess(`Đã cập nhật tài liệu "${updated.title}".`);
+      sessionStorage.removeItem(`smartscan_document_form_edit_${id}`);
+      sessionStorage.removeItem('smartscan_active_upload');
       setTimeout(() => navigate('/tai-lieu'), 1000);
     } catch (err) {
       toastError(err.message || 'Cập nhật tài liệu thất bại.');

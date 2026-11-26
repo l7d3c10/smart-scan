@@ -1,25 +1,29 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { documentService } from '../services/document.service.js';
 import { useToast } from '../hooks/useToast.js';
 import { Button } from '../components/ui/Button.jsx';
 import { ToastContainer } from '../components/ui/ToastContainer.jsx';
 import { DocumentForm } from '../components/documents/DocumentForm.jsx';
+import { imageService } from '../services/image.service.js';
 
 export default function DocumentCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast();
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (form) => {
     setSaving(true);
     try {
-      const doc = await documentService.create({
-        title: form.title.trim(),
-        type: form.type,
-        description: form.description.trim(),
-      });
+      const data = { title: form.title.trim(), type: form.type, description: form.description.trim() };
+      const response = form.imageDraftId
+        ? await imageService.save(form.imageDraftId, data)
+        : await documentService.create({ ...data, ...(form.imageSourceId ? { imageSourceId: form.imageSourceId } : {}) });
+      const doc = response.document || response;
+      sessionStorage.removeItem('smartscan_document_form_create_new');
+      sessionStorage.removeItem('smartscan_active_upload');
       toastSuccess(`Tài liệu "${doc.title}" đã được tạo thành công.`);
       setTimeout(() => navigate('/tai-lieu'), 1000);
     } catch (err) {
@@ -46,6 +50,7 @@ export default function DocumentCreatePage() {
 
       <DocumentForm
         mode="create"
+        initialDraftId={searchParams.get('draftId') || ''}
         onSubmit={handleSubmit}
         saving={saving}
       />

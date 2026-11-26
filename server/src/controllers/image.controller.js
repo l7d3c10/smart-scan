@@ -22,7 +22,7 @@ function safePath(root, relative) {
 async function ownedUpload(req, executor = req.app.locals.pool, lock = false) {
   if (!UUID.test(req.params.id)) throw httpError(404, 'NOT_FOUND', 'Ảnh tải lên không tồn tại.');
   const result = await executor.query(
-    `SELECT id, owner_id, original_path, processed_path, step_paths, mode, document_id
+    `SELECT id, owner_id, original_path, processed_path, step_paths, mode, params, warning, document_id
      FROM uploads WHERE id = $1${lock ? ' FOR UPDATE' : ''}`, [req.params.id]);
   const upload = result.rows[0];
   if (!upload || (req.user.role !== 'admin' && upload.owner_id !== req.user.id)) {
@@ -67,6 +67,25 @@ export async function processUpload(req, res, next) {
   } catch (error) { return next(error); }
 }
 
+export async function getUploadDraft(req, res, next) {
+  try {
+    const upload = await ownedUpload(req);
+    const paths = Array.isArray(upload.step_paths) ? upload.step_paths : JSON.parse(upload.step_paths || '[]');
+    return res.json({ ok: true, data: {
+      id: upload.id,
+      mode: upload.mode,
+      params: upload.params || null,
+      warning: upload.warning,
+      originalUrl: `/api/uploads/${upload.id}/original`,
+      resultUrl: upload.processed_path ? `/api/uploads/${upload.id}/processed` : null,
+      steps: paths.map((_, index) => ({
+        label: ['Ảnh xám và làm mờ', 'Cạnh Canny', 'Viền tài liệu', 'Ảnh sau nắn'][index],
+        url: `/api/uploads/${upload.id}/steps/${index}`,
+      })),
+    } });
+  } catch (error) { return next(error); }
+}
+
 export async function getUploadImage(req, res, next) {
   try {
     const upload = await ownedUpload(req);
@@ -80,8 +99,13 @@ export async function getUploadImage(req, res, next) {
     if (!relative) throw httpError(404, 'NOT_FOUND', 'Ảnh không tồn tại.');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('Content-Disposition', 'inline');
-    return res.sendFile(safePath(req.app.locals.storageRoot, relative), (error) => {
+    const download = req.query.download === '1';
+    if (!download) res.setHeader('Content-Disposition', 'inline');
+    return download
+      ? res.download(safePath(req.app.locals.storageRoot, relative), `smartscan-${upload.id}-processed.png`, (error) => {
+        if (error && !res.headersSent) next(error);
+      })
+      : res.sendFile(safePath(req.app.locals.storageRoot, relative), (error) => {
       if (error && !res.headersSent) next(error);
     });
   } catch (error) { return next(error); }
@@ -94,13 +118,21 @@ export async function saveUpload(req, res, next) {
     const upload = await ownedUpload(req, client, true);
     if (!upload.processed_path) throw httpError(409, 'IMAGE_NOT_PROCESSED', 'Hãy xử lý ảnh trước khi lưu.');
     const { title, type, description = '', documentId } = req.body || {};
+    if (typeof description !== 'string' || description.length > 500) {
+      throw httpError(422, 'VALIDATION_ERROR', 'Mô tả phải là văn bản và tối đa 500 ký tự.');
+    }
     let document;
     if (documentId !== undefined && documentId !== null && documentId !== '') {
       if (!/^\d+$/.test(String(documentId))) throw httpError(422, 'VALIDATION_ERROR', 'Mã tài liệu không hợp lệ.');
+      if (typeof title !== 'string' || !title.trim() || title.trim().length > 150 || !TYPES.has(type)) {
+        throw httpError(422, 'VALIDATION_ERROR', 'Tên tài liệu và loại tài liệu không hợp lệ.');
+      }
       const updated = await client.query(
-        `UPDATE documents SET original_path = $1, processed_path = $2, process_mode = $3, updated_at = NOW()
-         WHERE id = $4 AND ($5::int IS NULL OR owner_id = $5) RETURNING id, code, title`,
-        [upload.original_path, upload.processed_path, upload.mode, Number(documentId), req.user.role === 'admin' ? null : req.user.id]);
+        `UPDATE documents SET title = $1, type = $2, description = $3,
+         original_path = $4, processed_path = $5, process_mode = $6, updated_at = NOW()
+         WHERE id = $7 AND ($8::int IS NULL OR owner_id = $8) RETURNING id, code, title`,
+        [title.trim(), type, String(description).slice(0, 500), upload.original_path,
+          upload.processed_path, upload.mode, Number(documentId), req.user.role === 'admin' ? null : req.user.id]);
       document = updated.rows[0];
       if (!document) throw httpError(404, 'NOT_FOUND', 'Tài liệu không tồn tại hoặc bạn không có quyền sửa.');
     } else {
@@ -131,15 +163,20 @@ export async function getDocumentImage(req, res, next) {
     if (!Number.isInteger(documentId) || documentId < 1) throw httpError(404, 'NOT_FOUND', 'Ảnh không tồn tại.');
     if (!['original', 'processed'].includes(req.params.kind)) throw httpError(404, 'NOT_FOUND', 'Ảnh không tồn tại.');
     const result = await req.app.locals.pool.query(
-      `SELECT ${req.params.kind === 'original' ? 'original_path' : 'processed_path'} AS image_path
+      `SELECT ${req.params.kind === 'original' ? 'original_path' : 'processed_path'} AS image_path, code
        FROM documents WHERE id = $1`, [documentId]);
     const relative = result.rows[0]?.image_path;
     if (!relative) throw httpError(404, 'NOT_FOUND', 'Ảnh không tồn tại.');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, no-store');
+    const absolutePath = safePath(req.app.locals.storageRoot, relative);
+    if (req.query.download === '1') {
+      const extension = path.extname(relative) || '.png';
+      return res.download(absolutePath, `${result.rows[0].code}-${req.params.kind}${extension}`, (error) => {
+        if (error && !res.headersSent) next(error);
+      });
+    }
     res.setHeader('Content-Disposition', 'inline');
-    return res.sendFile(safePath(req.app.locals.storageRoot, relative), (error) => {
-      if (error && !res.headersSent) next(error);
-    });
+    return res.sendFile(absolutePath, (error) => { if (error && !res.headersSent) next(error); });
   } catch (error) { return next(error); }
 }

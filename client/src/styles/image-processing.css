@@ -27,9 +27,20 @@
 .image-form-grid label { display: grid; gap: var(--space-2); color: var(--text-secondary); }
 .image-form-grid .wide { grid-column: 1 / -1; }
 .image-form-grid textarea { min-height: 100px; padding-top: var(--space-2); }
+.document-image-field { display: grid; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-default); }
+.document-image-actions { display: grid; grid-template-columns: auto minmax(240px, 1fr); gap: var(--space-3); }
+.document-image-drop { min-height: 100px; display: flex; align-items: center; justify-content: center; gap: var(--space-3); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); color: var(--text-muted); }
+.document-image-editor { display: grid; gap: var(--space-3); }
+.document-image-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-5); }
+.document-image-sliders label span { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: var(--text-sm); }
+.document-image-sliders input { width: 100%; accent-color: var(--color-primary-600); }
+.document-image-result { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.document-image-result img, .document-image-preview { max-width: 100%; max-height: 420px; object-fit: contain; border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+.image-field-hint { margin: 0; color: var(--text-muted); font-size: var(--text-xs); }
 @media (max-width: 720px) {
   .image-steps { gap: var(--space-2); justify-content: space-between; font-size: var(--text-sm); }
   .image-step-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .image-form-grid { grid-template-columns: 1fr; }
   .image-form-grid .wide { grid-column: auto; }
+  .document-image-actions, .document-image-sliders { grid-template-columns: 1fr; }
 }

@@ -3,6 +3,7 @@ import {
   listDocuments,
   getNextCode,
   getFolders,
+  getProcessedImages,
   createFolder,
   deleteFolder,
   exportDocuments,
@@ -31,6 +32,7 @@ router.use('/documents', requireAuth);
 // Static document paths must be registered before /documents/:id
 router.get('/documents', listDocuments);
 router.get('/documents/folders', getFolders);
+router.get('/documents/processed-images', getProcessedImages);
 router.post('/documents/folders', createFolder);
 router.delete('/documents/folders/:name', deleteFolder);
 router.get('/documents/next-code', getNextCode);

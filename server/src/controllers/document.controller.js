@@ -101,6 +101,24 @@ export async function getFolders(req, res, next) {
   }
 }
 
+// GET /api/documents/processed-images
+export async function getProcessedImages(req, res, next) {
+  try {
+    const ownerCondition = req.user.role === 'admin' ? '' : 'AND owner_id = $1';
+    const params = req.user.role === 'admin' ? [] : [req.user.id];
+    const result = await req.app.locals.pool.query(
+      `SELECT id, code, title, original_path IS NOT NULL AS has_original
+       FROM documents
+       WHERE processed_path IS NOT NULL AND COALESCE(is_deleted, FALSE) = FALSE ${ownerCondition}
+       ORDER BY updated_at DESC LIMIT 100`, params);
+    return res.json({ ok: true, data: result.rows.map((row) => ({
+      id: row.id, code: row.code, title: row.title, hasOriginal: row.has_original,
+      imageUrl: `/api/documents/${row.id}/image/processed`,
+      downloadUrl: `/api/documents/${row.id}/image/processed?download=1`,
+    })) });
+  } catch (error) { return next(error); }
+}
+
 // POST /api/documents/folders
 export async function createFolder(req, res, next) {
   try {
@@ -201,11 +219,29 @@ export async function createDocument(req, res, next) {
         error: { code: 'VALIDATION_ERROR', message: 'Dữ liệu không hợp lệ.', fields: errors },
       });
     }
+    let imagePaths = {};
+    if (body.imageSourceId !== undefined && body.imageSourceId !== null && body.imageSourceId !== '') {
+      const sourceId = Number(body.imageSourceId);
+      if (!Number.isInteger(sourceId) || sourceId < 1) {
+        return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Ảnh nguồn không hợp lệ.' } });
+      }
+      const source = await pool.query(
+        `SELECT owner_id, original_path, processed_path, process_mode FROM documents
+         WHERE id = $1 AND processed_path IS NOT NULL AND COALESCE(is_deleted, FALSE) = FALSE
+           AND ($2::int IS NULL OR owner_id = $2)`,
+        [sourceId, req.user.role === 'admin' ? null : req.user.id]);
+      if (!source.rows[0]) {
+        return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Ảnh đã xử lý không tồn tại hoặc bạn không có quyền sử dụng.' } });
+      }
+      imagePaths = { originalPath: source.rows[0].original_path, processedPath: source.rows[0].processed_path,
+        processMode: source.rows[0].process_mode };
+    }
     const doc = await docRepo.create(pool, {
       title: String(title).trim(),
       type,
       description: description ? String(description) : '',
       ownerId: req.user.id,
+      ...imagePaths,
       folderName: folderName || 'Tài liệu nội bộ',
     });
     return res.status(201).json({ ok: true, data: doc });
@@ -234,10 +270,28 @@ export async function updateDocument(req, res, next) {
         error: { code: 'VALIDATION_ERROR', message: 'Dữ liệu không hợp lệ.', fields: errors },
       });
     }
+    let imagePaths = {};
+    if (body.imageSourceId !== undefined && body.imageSourceId !== null && body.imageSourceId !== '') {
+      const sourceId = Number(body.imageSourceId);
+      if (!Number.isInteger(sourceId) || sourceId < 1) {
+        return res.status(422).json({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'Ảnh nguồn không hợp lệ.' } });
+      }
+      const source = await pool.query(
+        `SELECT owner_id, original_path, processed_path, process_mode FROM documents
+         WHERE id = $1 AND processed_path IS NOT NULL AND COALESCE(is_deleted, FALSE) = FALSE
+           AND ($2::int IS NULL OR owner_id = $2)`,
+        [sourceId, req.user.role === 'admin' ? null : req.user.id]);
+      if (!source.rows[0]) {
+        return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Ảnh đã xử lý không tồn tại hoặc bạn không có quyền sử dụng.' } });
+      }
+      imagePaths = { originalPath: source.rows[0].original_path, processedPath: source.rows[0].processed_path,
+        processMode: source.rows[0].process_mode };
+    }
     const doc = await docRepo.update(pool, id, {
       title: title !== undefined ? String(title).trim() : undefined,
       type,
       description: description !== undefined ? String(description) : undefined,
+      ...imagePaths,
       folderName,
     }, req.user.role === 'admin' ? undefined : req.user.id);
 

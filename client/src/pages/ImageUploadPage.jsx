@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ImagePlus, UploadCloud } from 'lucide-react';
+import { ArrowLeft, ImagePlus, UploadCloud } from 'lucide-react';
 import { imageService } from '../services/image.service.js';
 import { Button } from '../components/ui/Button.jsx';
 import '../styles/image-processing.css';
@@ -46,7 +46,7 @@ export default function ImageUploadPage() {
   }
 
   return <section className="image-workflow">
-    <header className="page-header"><div><h1 className="page-title">Tải ảnh tài liệu</h1><p className="page-desc">Chọn ảnh để bắt đầu số hóa bằng SmartScan.</p></div></header>
+    <header className="page-header"><div><h1 className="page-title">Tải ảnh tài liệu</h1><p className="page-desc">Chọn ảnh để bắt đầu số hóa bằng SmartScan.</p></div><Button icon={ArrowLeft} onClick={() => navigate('/tai-lieu/them')}>Quay lại form tài liệu</Button></header>
     <div className="image-steps"><span className="current">1 · Tải ảnh</span><span>2 · Xử lý</span><span>3 · Lưu tài liệu</span></div>
 
     {activeUpload && (
