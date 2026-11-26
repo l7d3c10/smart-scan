@@ -10,3 +10,6 @@ __pycache__/
 .impeccable/
 docs/
 .pgdata/
+scripts/
+phan-chia.txt
+KIEM_THU_SMARTSCAN.md
