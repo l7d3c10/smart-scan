@@ -4,6 +4,7 @@ import {
   listDocuments,
   getDocument,
   createDocument,
+  getProcessedImages,
   updateDocument,
   deleteDocument,
   bulkDeleteDocuments,
@@ -71,6 +72,28 @@ test('createDocument returns 422 when type is invalid', async () => {
   assert.equal(res.body.ok, false);
   assert.equal(res.body.error.code, 'VALIDATION_ERROR');
   assert.ok(res.body.error.fields.type);
+});
+
+test('getProcessedImages scopes results to the signed-in owner and omits deleted documents', async () => {
+  let sql;
+  let params;
+  const req = {
+    user: { id: 9, role: 'user' },
+    app: { locals: { pool: { query: async (query, values) => {
+      sql = query;
+      params = values;
+      return { rows: [{ id: 3, code: 'TL-0003', title: 'Đơn đã quét', has_original: true }] };
+    } } } },
+  };
+  const res = createMockResponse();
+
+  await getProcessedImages(req, res, () => {});
+
+  assert.deepEqual(params, [9]);
+  assert.match(sql, /owner_id = \$1/);
+  assert.match(sql, /COALESCE\(is_deleted, FALSE\) = FALSE/);
+  assert.equal(res.body.data[0].imageUrl, '/api/documents/3/image/processed');
+  assert.equal(res.body.data[0].downloadUrl, '/api/documents/3/image/processed?download=1');
 });
 
 test('listDocuments returns 422 for invalid sort parameter', async () => {

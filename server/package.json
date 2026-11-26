@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "test": "node --test",
+    "test:smoke": "node scripts/system-smoke.mjs",
     "seed:auth": "node db/seeds/002_auth_users.js"
   },
   "dependencies": {
